@@ -1,6 +1,39 @@
-import React, { useState } from 'react';
+// src/SellerSetupProfile.tsx
+import React, { useState, ChangeEvent, FormEvent } from 'react';
 
-const SellerSetupProfile = ({ onNavigate, onBack, tempData, onUpdateUser }) => {
+type TempData = {
+  phone?: string;
+  password?: string;
+  isSignUp?: boolean;
+  [k: string]: any;
+};
+
+type UserData = TempData & {
+  name: string;
+  businessName: string;
+  address: string;
+  city: string;
+  state: string;
+  pincode: string;
+  profileImage: string | null;
+  isComplete: boolean;
+  type: 'seller';
+  id: string;
+};
+
+type SellerSetupProfileProps = {
+  onNavigate: (path: string, payload?: any) => void;
+  onBack: () => void;
+  onUpdateUser: (user: UserData) => void;
+  tempData?: TempData;
+};
+
+const SellerSetupProfile: React.FC<SellerSetupProfileProps> = ({
+  onNavigate,
+  onBack,
+  onUpdateUser,
+  tempData = {},
+}) => {
   const [formData, setFormData] = useState({
     name: '',
     businessName: '',
@@ -8,51 +41,54 @@ const SellerSetupProfile = ({ onNavigate, onBack, tempData, onUpdateUser }) => {
     city: '',
     state: '',
     pincode: '',
-    profileImage: null
+    profileImage: null as string | null,
   });
-  const [imagePreview, setImagePreview] = useState(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
 
-  const handleInputChange = (e) => {
+  const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleImageUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      if (file.size > 2 * 1024 * 1024) { // 2MB limit
-        alert('File size must be less than 2MB');
-        return;
-      }
-      
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setImagePreview(event.target.result);
-        setFormData(prev => ({ ...prev, profileImage: event.target.result }));
-      };
-      reader.readAsDataURL(file);
+  const handleImageUpload = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      alert('File size must be less than 2MB');
+      return;
     }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const result = event.target?.result as string | null;
+      if (result) {
+        setImagePreview(result);
+        setFormData((prev) => ({ ...prev, profileImage: result }));
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    
-    // Create complete user data
-    const userData = {
+
+    // Merge setup data
+    const userData: UserData = {
       ...tempData,
       ...formData,
       isComplete: true,
       type: 'seller',
-      id: Date.now().toString()
+      id: Date.now().toString(),
     };
 
-    // Save to localStorage
-    localStorage.setItem('cc_seller', JSON.stringify(userData));
-    
-    // Update current user
+    try {
+      localStorage.setItem('cc_seller', JSON.stringify(userData));
+    } catch (err) {
+      console.error('Error saving seller to localStorage', err);
+    }
+
     onUpdateUser(userData);
-    
-    // Navigate to dashboard
     onNavigate('seller-dashboard');
   };
 
@@ -64,9 +100,7 @@ const SellerSetupProfile = ({ onNavigate, onBack, tempData, onUpdateUser }) => {
             <h2 className="text-2xl font-bold text-[#d67a4a] mb-2">
               Complete Your Seller Profile
             </h2>
-            <p className="text-[#666]">
-              Set up your artisan profile to start selling
-            </p>
+            <p className="text-[#666]">Set up your artisan profile to start selling</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -74,9 +108,9 @@ const SellerSetupProfile = ({ onNavigate, onBack, tempData, onUpdateUser }) => {
             <div className="flex flex-col items-center mb-6">
               <div className="relative mb-4">
                 {imagePreview ? (
-                  <img 
-                    src={imagePreview} 
-                    alt="Profile" 
+                  <img
+                    src={imagePreview}
+                    alt="Profile"
                     className="w-32 h-32 rounded-full object-cover border-4 border-[#d67a4a]"
                   />
                 ) : (
@@ -198,6 +232,7 @@ const SellerSetupProfile = ({ onNavigate, onBack, tempData, onUpdateUser }) => {
             <button
               onClick={onBack}
               className="text-[#666] hover:text-[#333] font-medium"
+              type="button"
             >
               ← Back
             </button>

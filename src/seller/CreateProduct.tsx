@@ -1,7 +1,68 @@
-import React, { useState } from 'react';
+// src/CreateProduct.tsx
+import React, { useState, ChangeEvent, FormEvent } from 'react';
 
-const CreateProduct = ({ user, onNavigate, onBack }) => {
-  const [formData, setFormData] = useState({
+type User = {
+  id?: string | number;
+  name?: string;
+  [k: string]: any;
+};
+
+type CreateProductProps = {
+  user?: User | null;
+  onNavigate: (path: string, payload?: any) => void;
+  onBack: () => void;
+};
+
+type FormState = {
+  name: string;
+  description: string;
+  price: string; // keep as string for controlled input, convert on submit
+  category: string;
+  material: string;
+  weight: string; // kg as string from input
+  process: string;
+  productImage?: string | null;
+};
+
+const categories = [
+  { id: 'terracotta', name: 'Terracotta' },
+  { id: 'jute', name: 'Jute & Bags' },
+  { id: 'textiles', name: 'Textiles' },
+  { id: 'bamboo', name: 'Bamboo & Wood' }
+];
+
+/**
+ * Calculate CO2 impact and return a number (kg) with 1 decimal precision.
+ * Returns a Number (not string) to avoid type mismatches.
+ */
+const calculateCO2Impact = (material: string, weightStr: string, process: string): number => {
+  const baseCO2 = parseFloat(weightStr) || 1;
+  const materialMultiplier: Record<string, number> = {
+    clay: 0.8,
+    jute: 1.2,
+    cotton: 0.9,
+    bamboo: 1.5,
+    wood: 1.3
+  };
+  const processMultiplier: Record<string, number> = {
+    handmade: 2.0,
+    traditional: 1.8,
+    sustainable: 2.2
+  };
+
+  const materialKey = (material || '').toLowerCase();
+  const processKey = (process || '').toLowerCase();
+
+  const materialFactor = materialMultiplier[materialKey] ?? 1.0;
+  const processFactor = processMultiplier[processKey] ?? 1.0;
+
+  const raw = baseCO2 * materialFactor * processFactor;
+  // round to 1 decimal and return number
+  return Math.round(raw * 10) / 10;
+};
+
+const CreateProduct: React.FC<CreateProductProps> = ({ user, onNavigate, onBack }) => {
+  const [formData, setFormData] = useState<FormState>({
     name: '',
     description: '',
     price: '',
@@ -11,84 +72,108 @@ const CreateProduct = ({ user, onNavigate, onBack }) => {
     process: '',
     productImage: null
   });
-  const [imagePreview, setImagePreview] = useState(null);
-  const [co2Prediction, setCo2Prediction] = useState(0);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [co2Prediction, setCo2Prediction] = useState<number>(0);
 
-  const categories = [
-    { id: 'terracotta', name: 'Terracotta' },
-    { id: 'jute', name: 'Jute & Bags' },
-    { id: 'textiles', name: 'Textiles' },
-    { id: 'bamboo', name: 'Bamboo & Wood' }
-  ];
-
-  // Mock CO2 calculation function
-  const calculateCO2Impact = (material, weight, process) => {
-    const baseCO2 = parseFloat(weight) || 1;
-    const materialMultiplier = {
-      'clay': 0.8,
-      'jute': 1.2,
-      'cotton': 0.9,
-      'bamboo': 1.5,
-      'wood': 1.3
-    };
-    const processMultiplier = {
-      'handmade': 2.0,
-      'traditional': 1.8,
-      'sustainable': 2.2
-    };
-    
-    const materialFactor = materialMultiplier[material.toLowerCase()] || 1.0;
-    const processFactor = processMultiplier[process.toLowerCase()] || 1.0;
-    
-    return (baseCO2 * materialFactor * processFactor).toFixed(1);
-  };
-
-  const handleInputChange = (e) => {
+  const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-    
-    // Update CO2 prediction when relevant fields change
-    if (name === 'material' || name === 'weight' || name === 'process') {
-      const updatedData = { ...formData, [name]: value };
-      const prediction = calculateCO2Impact(updatedData.material, updatedData.weight, updatedData.process);
-      setCo2Prediction(prediction);
-    }
-  };
+    // update form data first
+    setFormData(prev => {
+      const updated = { ...prev, [name]: value };
 
-  const handleImageUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      if (file.size > 2 * 1024 * 1024) { // 2MB limit
-        alert('File size must be less than 2MB');
-        return;
+      // calculate CO2 prediction when relevant fields change
+      if (name === 'material' || name === 'weight' || name === 'process') {
+        const material = name === 'material' ? value : updated.material;
+        const weight = name === 'weight' ? value : updated.weight;
+        const process = name === 'process' ? value : updated.process;
+
+        const prediction = calculateCO2Impact(material, weight, process);
+        // set numeric prediction
+        setCo2Prediction(prediction);
       }
-      
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setImagePreview(event.target.result);
-        setFormData(prev => ({ ...prev, productImage: event.target.result }));
-      };
-      reader.readAsDataURL(file);
-    }
+
+      return updated;
+    });
   };
 
-  const handleSubmit = (e) => {
+  const handleImageUpload = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // 2MB limit
+    if (file.size > 2 * 1024 * 1024) {
+      alert('File size must be less than 2MB');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string | null;
+      if (result) {
+        setImagePreview(result);
+        setFormData(prev => ({ ...prev, productImage: result }));
+      }
+    };
+    reader.onerror = () => {
+      alert('Failed to read file');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    
-    // Create product data
+
+    // basic validation
+    if (!formData.name.trim()) {
+      alert('Please enter product name');
+      return;
+    }
+    if (!formData.description.trim()) {
+      alert('Please enter description');
+      return;
+    }
+    if (!formData.category) {
+      alert('Please select a category');
+      return;
+    }
+    const priceNum = parseFloat(formData.price);
+    if (isNaN(priceNum) || priceNum <= 0) {
+      alert('Please enter a valid price');
+      return;
+    }
+    const weightNum = parseFloat(formData.weight);
+    if (isNaN(weightNum) || weightNum <= 0) {
+      alert('Please enter a valid weight');
+      return;
+    }
+
+    // Build product object
     const productData = {
       ...formData,
       id: Date.now().toString(),
-      sellerId: user.id,
-      sellerName: user.name,
-      co2Prediction: parseFloat(co2Prediction),
+      sellerId: user?.id ?? null,
+      sellerName: user?.name ?? 'Unknown Seller',
+      price: priceNum,
+      co2Prediction: co2Prediction || calculateCO2Impact(formData.material, formData.weight, formData.process),
       createdAt: new Date().toISOString(),
-      image: formData.productImage || 'https://images.pexels.com/photos/6474306/pexels-photo-6474306.jpeg?auto=compress&cs=tinysrgb&w=400'
+      image: formData.productImage ?? 'https://images.pexels.com/photos/6474306/pexels-photo-6474306.jpeg?auto=compress&cs=tinysrgb&w=400'
     };
 
-    // Save to localStorage
-    const existingProducts = JSON.parse(localStorage.getItem('cc_seller_products') || '[]');
-    localStorage.setItem('cc_seller_products', JSON.stringify([...existingProducts, productData]));
+    // Save to localStorage (defensive)
+    try {
+      const raw = localStorage.getItem('cc_seller_products') || '[]';
+      const existingProducts = Array.isArray(JSON.parse(raw)) ? (JSON.parse(raw) as any[]) : [];
+      localStorage.setItem('cc_seller_products', JSON.stringify([...existingProducts, productData]));
+    } catch (err) {
+      // if parse fails, overwrite with new array
+      try {
+        localStorage.setItem('cc_seller_products', JSON.stringify([productData]));
+      } catch {
+        console.error('Failed to save product in localStorage', err);
+        alert('Failed to save product. Please try again.');
+        return;
+      }
+    }
 
     alert('Product created successfully! 🎉');
     onNavigate('seller-dashboard');
@@ -104,6 +189,7 @@ const CreateProduct = ({ user, onNavigate, onBack }) => {
               <button
                 onClick={onBack}
                 className="text-[#666] hover:text-[#333] font-medium"
+                type="button"
               >
                 ← Back to Dashboard
               </button>
@@ -122,9 +208,9 @@ const CreateProduct = ({ user, onNavigate, onBack }) => {
               <div className="flex flex-col items-center">
                 <div className="relative mb-4">
                   {imagePreview ? (
-                    <img 
-                      src={imagePreview} 
-                      alt="Product" 
+                    <img
+                      src={imagePreview}
+                      alt="Product"
                       className="w-48 h-48 rounded-lg object-cover border-4 border-[#d67a4a]"
                     />
                   ) : (
@@ -133,7 +219,7 @@ const CreateProduct = ({ user, onNavigate, onBack }) => {
                     </div>
                   )}
                 </div>
-                <label className="btn-secondary cursor-pointer">
+                <label className="btn-secondary cursor-pointer inline-flex items-center gap-2">
                   Upload Product Image (Max 2MB)
                   <input
                     type="file"
@@ -150,9 +236,7 @@ const CreateProduct = ({ user, onNavigate, onBack }) => {
               <h3 className="text-lg font-semibold text-[#333] mb-4">Basic Information</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-[#333] mb-2">
-                    Product Name *
-                  </label>
+                  <label className="block text-sm font-medium text-[#333] mb-2">Product Name *</label>
                   <input
                     type="text"
                     name="name"
@@ -165,9 +249,7 @@ const CreateProduct = ({ user, onNavigate, onBack }) => {
                 </div>
 
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-[#333] mb-2">
-                    Description *
-                  </label>
+                  <label className="block text-sm font-medium text-[#333] mb-2">Description *</label>
                   <textarea
                     name="description"
                     value={formData.description}
@@ -179,9 +261,7 @@ const CreateProduct = ({ user, onNavigate, onBack }) => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-[#333] mb-2">
-                    Category *
-                  </label>
+                  <label className="block text-sm font-medium text-[#333] mb-2">Category *</label>
                   <select
                     name="category"
                     value={formData.category}
@@ -199,9 +279,7 @@ const CreateProduct = ({ user, onNavigate, onBack }) => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-[#333] mb-2">
-                    Price (₹) *
-                  </label>
+                  <label className="block text-sm font-medium text-[#333] mb-2">Price (₹) *</label>
                   <input
                     type="number"
                     name="price"
@@ -210,6 +288,7 @@ const CreateProduct = ({ user, onNavigate, onBack }) => {
                     className="input-field"
                     placeholder="Enter price"
                     min="1"
+                    step="0.01"
                     required
                   />
                 </div>
@@ -224,9 +303,7 @@ const CreateProduct = ({ user, onNavigate, onBack }) => {
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-[#333] mb-2">
-                    Material *
-                  </label>
+                  <label className="block text-sm font-medium text-[#333] mb-2">Material *</label>
                   <input
                     type="text"
                     name="material"
@@ -239,9 +316,7 @@ const CreateProduct = ({ user, onNavigate, onBack }) => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-[#333] mb-2">
-                    Weight (kg) *
-                  </label>
+                  <label className="block text-sm font-medium text-[#333] mb-2">Weight (kg) *</label>
                   <input
                     type="number"
                     name="weight"
@@ -256,9 +331,7 @@ const CreateProduct = ({ user, onNavigate, onBack }) => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-[#333] mb-2">
-                    Process *
-                  </label>
+                  <label className="block text-sm font-medium text-[#333] mb-2">Process *</label>
                   <input
                     type="text"
                     name="process"
@@ -276,16 +349,12 @@ const CreateProduct = ({ user, onNavigate, onBack }) => {
                 <div className="mt-6 p-4 bg-green-50 rounded-lg border border-green-200">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h4 className="font-semibold text-green-800 mb-1">
-                        🌱 Environmental Impact Prediction
-                      </h4>
+                      <h4 className="font-semibold text-green-800 mb-1">🌱 Environmental Impact Prediction</h4>
                       <p className="text-sm text-green-600">
                         This product will help buyers save approximately <strong>{co2Prediction}kg of CO₂</strong> compared to mass-produced alternatives.
                       </p>
                     </div>
-                    <div className="text-3xl font-bold text-green-700">
-                      {co2Prediction}kg
-                    </div>
+                    <div className="text-3xl font-bold text-green-700">{co2Prediction}kg</div>
                   </div>
                 </div>
               )}

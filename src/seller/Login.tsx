@@ -1,29 +1,45 @@
-import React, { useState } from 'react';
+// src/SellerLogin.tsx
+import React, { useState, FormEvent } from 'react';
 
-const SellerLogin = ({ onNavigate, onBack }) => {
-  const [phone, setPhone] = useState('');
-  const [password, setPassword] = useState('');
-  const [isSignUp, setIsSignUp] = useState(false);
+type NavigateFn = (path: string, payload?: any) => void;
 
-  const handleSubmit = (e) => {
+type SellerLoginProps = {
+  onNavigate: NavigateFn;
+  onBack: () => void;
+};
+
+const SellerLogin: React.FC<SellerLoginProps> = ({ onNavigate, onBack }) => {
+  const [phone, setPhone] = useState<string>('');
+  const [password, setPassword] = useState<string>('');
+  const [isSignUp, setIsSignUp] = useState<boolean>(false);
+
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    
+
     if (isSignUp) {
-      // Sign up flow - go to OTP
+      // Sign up flow - go to OTP (pass phone + flag)
       onNavigate('seller-otp', { phone, isSignUp: true });
-    } else {
-      // Login flow - check if user exists
-      const existingUser = localStorage.getItem('cc_seller');
-      if (existingUser) {
-        const userData = JSON.parse(existingUser);
-        if (userData.phone === phone && userData.password === password) {
-          onNavigate('seller-dashboard');
-        } else {
-          alert('Invalid credentials');
-        }
-      } else {
+      return;
+    }
+
+    // Login flow - check if user exists in localStorage
+    try {
+      const existingUserRaw = localStorage.getItem('cc_seller');
+      if (!existingUserRaw) {
         alert('Account not found. Please sign up first.');
+        return;
       }
+
+      const userData = JSON.parse(existingUserRaw);
+      // If you store multiple sellers, adapt this check accordingly
+      if (userData.phone === phone && userData.password === password) {
+        onNavigate('seller-dashboard');
+      } else {
+        alert('Invalid credentials');
+      }
+    } catch (err) {
+      console.error('Error reading seller from storage', err);
+      alert('An error occurred. Please try again.');
     }
   };
 
@@ -79,6 +95,7 @@ const SellerLogin = ({ onNavigate, onBack }) => {
           <button
             onClick={() => setIsSignUp(!isSignUp)}
             className="text-[#d67a4a] font-medium hover:underline"
+            type="button"
           >
             {isSignUp ? 'Already have an account? Login' : "Don't have an account? Sign Up"}
           </button>
@@ -88,6 +105,7 @@ const SellerLogin = ({ onNavigate, onBack }) => {
           <button
             onClick={onBack}
             className="text-[#666] hover:text-[#333] font-medium"
+            type="button"
           >
             ← Back to Home
           </button>

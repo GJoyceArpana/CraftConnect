@@ -1,9 +1,43 @@
-import React, { useState } from 'react';
+// src/BuyerCart.tsx
+import { useState } from 'react';
+import type { FC } from 'react';
 
-const BuyerCart = ({ user, onNavigate, onBack }) => {
-  const [cart, setCart] = useState(JSON.parse(localStorage.getItem('cc_cart') || '[]'));
+type User = {
+  id?: string | number;
+  name?: string;
+  phone?: string;
+  profileImage?: string;
+  email?: string;
+  address?: string;
+};
 
-  const updateQuantity = (productId, newQuantity) => {
+type CartItem = {
+  id: number;
+  name: string;
+  description?: string;
+  price: number;
+  co2Saved: number;
+  image?: string;
+  quantity: number;
+};
+
+type BuyerCartProps = {
+  user?: User | null;
+  onNavigate: (path: string) => void;
+  onBack: () => void;
+};
+
+const BuyerCart: FC<BuyerCartProps> = ({ user: _user, onNavigate, onBack }) => {
+  const [cart, setCart] = useState<CartItem[]>(() => {
+    try {
+      const raw = localStorage.getItem('cc_cart');
+      return raw ? (JSON.parse(raw) as CartItem[]) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const updateQuantity = (productId: number, newQuantity: number): void => {
     if (newQuantity === 0) {
       removeFromCart(productId);
       return;
@@ -13,19 +47,23 @@ const BuyerCart = ({ user, onNavigate, onBack }) => {
       item.id === productId ? { ...item, quantity: newQuantity } : item
     );
     setCart(updatedCart);
-    localStorage.setItem('cc_cart', JSON.stringify(updatedCart));
+    try {
+      localStorage.setItem('cc_cart', JSON.stringify(updatedCart));
+    } catch {}
   };
 
-  const removeFromCart = (productId) => {
+  const removeFromCart = (productId: number): void => {
     const updatedCart = cart.filter(item => item.id !== productId);
     setCart(updatedCart);
-    localStorage.setItem('cc_cart', JSON.stringify(updatedCart));
+    try {
+      localStorage.setItem('cc_cart', JSON.stringify(updatedCart));
+    } catch {}
   };
 
-  const subtotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
-  const totalCO2Saved = cart.reduce((total, item) => total + (item.co2Saved * item.quantity), 0);
+  const subtotal: number = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+  const totalCO2Saved: number = cart.reduce((total, item) => total + (item.co2Saved * item.quantity), 0);
 
-  const handleCheckout = () => {
+  const handleCheckout = (): void => {
     // Create order
     const order = {
       id: Date.now().toString(),
@@ -37,12 +75,18 @@ const BuyerCart = ({ user, onNavigate, onBack }) => {
     };
 
     // Save order
-    const existingOrders = JSON.parse(localStorage.getItem('cc_orders') || '[]');
-    localStorage.setItem('cc_orders', JSON.stringify([...existingOrders, order]));
+    try {
+      const existingOrders = JSON.parse(localStorage.getItem('cc_orders') || '[]');
+      localStorage.setItem('cc_orders', JSON.stringify([...existingOrders, order]));
+    } catch {
+      localStorage.setItem('cc_orders', JSON.stringify([order]));
+    }
 
     // Clear cart
     setCart([]);
-    localStorage.removeItem('cc_cart');
+    try {
+      localStorage.removeItem('cc_cart');
+    } catch {}
 
     alert('Order placed successfully! 🎉');
     onNavigate('buyer-dashboard');
@@ -87,7 +131,7 @@ const BuyerCart = ({ user, onNavigate, onBack }) => {
               <h3 className="text-lg font-semibold text-[#333] mb-4">
                 Cart Items ({cart.length})
               </h3>
-              
+
               {cart.map(item => (
                 <div key={item.id} className="dashboard-card">
                   <div className="flex items-center space-x-4">
@@ -96,7 +140,7 @@ const BuyerCart = ({ user, onNavigate, onBack }) => {
                       alt={item.name}
                       className="w-20 h-20 object-cover rounded-lg"
                     />
-                    
+
                     <div className="flex-1">
                       <h4 className="font-semibold text-[#333]">{item.name}</h4>
                       <p className="text-sm text-[#666] mb-2">{item.description}</p>
@@ -104,12 +148,12 @@ const BuyerCart = ({ user, onNavigate, onBack }) => {
                         🌱 -{item.co2Saved}kg CO₂ each
                       </div>
                     </div>
-                    
+
                     <div className="text-center">
                       <div className="text-lg font-bold text-[#154731] mb-2">
                         ₹{item.price}
                       </div>
-                      
+
                       <div className="flex items-center space-x-2">
                         <button
                           onClick={() => updateQuantity(item.id, item.quantity - 1)}
@@ -125,7 +169,7 @@ const BuyerCart = ({ user, onNavigate, onBack }) => {
                           +
                         </button>
                       </div>
-                      
+
                       <button
                         onClick={() => removeFromCart(item.id)}
                         className="text-red-500 hover:text-red-700 text-sm mt-2"
@@ -142,18 +186,18 @@ const BuyerCart = ({ user, onNavigate, onBack }) => {
             <div className="lg:col-span-1">
               <div className="dashboard-card sticky top-24">
                 <h3 className="text-lg font-semibold text-[#333] mb-4">Order Summary</h3>
-                
+
                 <div className="space-y-3 mb-6">
                   <div className="flex justify-between">
                     <span className="text-[#666]">Items ({cart.length})</span>
                     <span className="font-medium">₹{subtotal}</span>
                   </div>
-                  
+
                   <div className="flex justify-between">
                     <span className="text-[#666]">Delivery</span>
                     <span className="font-medium text-green-600">Free</span>
                   </div>
-                  
+
                   <div className="border-t pt-3 flex justify-between">
                     <span className="font-semibold">Total</span>
                     <span className="font-bold text-lg text-[#154731]">₹{subtotal}</span>
@@ -179,7 +223,7 @@ const BuyerCart = ({ user, onNavigate, onBack }) => {
                 >
                   Checkout - ₹{subtotal}
                 </button>
-                
+
                 <p className="text-xs text-[#666] text-center mt-3">
                   Demo checkout - no payment required
                 </p>

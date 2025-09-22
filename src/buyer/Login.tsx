@@ -1,29 +1,48 @@
-import React, { useState } from 'react';
+// src/BuyerLogin.tsx
+import React, { useState, FormEvent } from 'react';
 
-const BuyerLogin = ({ onNavigate, onBack }) => {
-  const [phone, setPhone] = useState('');
-  const [password, setPassword] = useState('');
-  const [isSignUp, setIsSignUp] = useState(false);
+type NavigateFn = (path: string, payload?: any) => void;
 
-  const handleSubmit = (e) => {
+type BuyerLoginProps = {
+  onNavigate: NavigateFn;
+  onBack: () => void;
+};
+
+const BuyerLogin: React.FC<BuyerLoginProps> = ({ onNavigate, onBack }) => {
+  const [phone, setPhone] = useState<string>('');
+  const [password, setPassword] = useState<string>('');
+  const [isSignUp, setIsSignUp] = useState<boolean>(false);
+
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    
+
     if (isSignUp) {
-      // Sign up flow - go to OTP
+      // Sign up flow - go to OTP screen and pass phone/isSignUp flag.
+      // The route handler (buyer-otp) can read the payload and show OTP UI.
       onNavigate('buyer-otp', { phone, isSignUp: true });
-    } else {
-      // Login flow - check if user exists
-      const existingUser = localStorage.getItem('cc_buyer');
-      if (existingUser) {
-        const userData = JSON.parse(existingUser);
-        if (userData.phone === phone && userData.password === password) {
-          onNavigate('buyer-dashboard');
-        } else {
-          alert('Invalid credentials');
-        }
-      } else {
+      return;
+    }
+
+    // Login flow - check if user exists in localStorage (demo)
+    try {
+      const existingUserRaw = localStorage.getItem('cc_buyer');
+      if (!existingUserRaw) {
         alert('Account not found. Please sign up first.');
+        return;
       }
+
+      const userData = JSON.parse(existingUserRaw);
+      // If you store multiple buyers, this simple demo assumes single buyer object.
+      // If you store an array, adapt this check accordingly.
+      if (userData.phone === phone && userData.password === password) {
+        // If you want to persist "logged in" state, you can set localStorage or app state here.
+        onNavigate('buyer-dashboard');
+      } else {
+        alert('Invalid credentials');
+      }
+    } catch (err) {
+      console.error('Error reading user from storage', err);
+      alert('An error occurred. Please try again.');
     }
   };
 
@@ -79,6 +98,7 @@ const BuyerLogin = ({ onNavigate, onBack }) => {
           <button
             onClick={() => setIsSignUp(!isSignUp)}
             className="text-[#154731] font-medium hover:underline"
+            type="button"
           >
             {isSignUp ? 'Already have an account? Login' : "Don't have an account? Sign Up"}
           </button>
@@ -88,6 +108,7 @@ const BuyerLogin = ({ onNavigate, onBack }) => {
           <button
             onClick={onBack}
             className="text-[#666] hover:text-[#333] font-medium"
+            type="button"
           >
             ← Back to Home
           </button>
