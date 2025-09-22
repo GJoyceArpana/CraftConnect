@@ -49,6 +49,11 @@ def analytics_dashboard():
     """Serve the advanced analytics dashboard"""
     return send_file('analytics_dashboard.html')
 
+@app.route('/marketplace')
+def marketplace():
+    """Serve the marketplace browsing page"""
+    return send_file('marketplace.html')
+
 @app.route('/static/<path:filename>')
 def static_files(filename):
     """Serve static files"""

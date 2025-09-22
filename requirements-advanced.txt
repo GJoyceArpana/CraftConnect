@@ -1,0 +1,84 @@
+# CraftConnect Advanced Tech Stack Requirements
+
+# === CORE FRAMEWORK ===
+flask>=3.1.2
+flask-cors>=4.0.0
+flask-jwt-extended>=4.6.0
+gunicorn>=21.2.0
+
+# === ADVANCED AI/ML MODELS ===
+# CLIP for visual understanding and auto-tagging
+clip-by-openai>=1.0
+torch>=2.0.0
+torchvision>=0.15.0
+transformers>=4.35.0
+
+# Computer Vision & Image Processing
+opencv-python>=4.8.0
+pillow>=10.0.0
+scikit-image>=0.21.0
+
+# Traditional ML for pricing and classification
+scikit-learn>=1.3.0
+xgboost>=2.0.0
+lightgbm>=4.1.0
+catboost>=1.2.0
+
+# === NLP & TEXT PROCESSING ===
+nltk>=3.9.1
+spacy>=3.8.7
+textblob>=0.19.0
+sentence-transformers>=2.2.2
+
+# === DATA PROCESSING ===
+pandas>=2.3.2
+numpy>=2.3.3
+python-dateutil>=2.9.0
+
+# === CLOUD & DATABASE ===
+# Firebase integration
+firebase-admin>=6.4.0
+pyrebase4>=4.7.1
+
+# AWS S3 integration
+boto3>=1.34.0
+botocore>=1.34.0
+
+# === API & COMMUNICATION ===
+requests>=2.32.5
+httpx>=0.25.0
+pydantic>=2.11.9
+
+# === IMAGE & MEDIA PROCESSING ===
+# Advanced image processing
+imageio>=2.31.0
+matplotlib>=3.8.0
+seaborn>=0.13.0
+
+# === MONITORING & ANALYTICS ===
+prometheus-flask-exporter>=0.23.0
+structlog>=23.2.0
+
+# === DEVELOPMENT & TESTING ===
+pytest>=7.4.0
+pytest-flask>=1.3.0
+black>=23.0.0
+flake8>=6.0.0
+
+# === SUSTAINABILITY ANALYSIS ===
+# Custom sustainability scoring
+carbon-footprint>=1.0.0  # If available
+lifecycle-assessment>=0.1.0  # Custom package
+
+# === AUTOMATION INTEGRATION ===
+# For UiPath integration
+requests-oauthlib>=1.3.1
+python-dotenv>=1.0.0
+
+# === CACHING & PERFORMANCE ===
+redis>=5.0.0
+flask-caching>=2.1.0
+
+# === SECURITY ===
+cryptography>=41.0.0
+bcrypt>=4.1.0

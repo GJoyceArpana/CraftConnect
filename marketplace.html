@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CraftConnect Marketplace - Sustainable Indian Crafts</title>
+    <link rel="stylesheet" href="static/style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* Marketplace-specific styles */
+        .marketplace-header {
+            background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+            color: white;
+            padding: 40px 0;
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        .marketplace-title {
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 10px;
+        }
+        
+        .marketplace-subtitle {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+        
+        .filters-section {
+            background: var(--bg-secondary);
+            border-radius: var(--border-radius);
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: var(--shadow);
+        }
+        
+        .filters-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .filter-label {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text-primary);
+        }
+        
+        .filter-select, .filter-input {
+            padding: 10px;
+            border: 2px solid #E9ECEF;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            transition: border-color 0.3s ease;
+        }
+        
+        .filter-select:focus, .filter-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+        
+        .sustainability-filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .sustainability-tag {
+            background: #E8F5E8;
+            color: var(--primary-color);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+            user-select: none;
+        }
+        
+        .sustainability-tag.active {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+        
+        .sustainability-tag:hover {
+            border-color: var(--primary-color);
+            transform: translateY(-2px);
+        }
+        
+        .products-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 25px;
+            margin-top: 30px;
+        }
+        
+        .product-card {
+            background: var(--bg-secondary);
+            border-radius: var(--border-radius);
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+        }
+        
+        .product-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+        }
+        
+        .product-image {
+            width: 100%;
+            height: 220px;
+            background: linear-gradient(45deg, #f0f0f0, #e0e0e0);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .product-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: var(--success-color);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        
+        .eco-score-badge {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(46, 139, 87, 0.9);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        
+        .product-info {
+            padding: 20px;
+        }
+        
+        .product-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text-primary);
+            line-height: 1.3;
+        }
+        
+        .product-artisan {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-bottom: 5px;
+        }
+        
+        .product-location {
+            color: var(--accent-color);
+            font-size: 0.9rem;
+            font-weight: 500;
+            margin-bottom: 12px;
+        }
+        
+        .product-description {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            line-height: 1.4;
+            margin-bottom: 15px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        
+        .product-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-bottom: 15px;
+        }
+        
+        .product-tag {
+            background: var(--primary-color);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        
+        .product-tag.material {
+            background: var(--secondary-color);
+        }
+        
+        .product-tag.sustainability {
+            background: var(--success-color);
+        }
+        
+        .product-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 15px;
+            border-top: 1px solid #E9ECEF;
+        }
+        
+        .product-price {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+        
+        .product-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .btn-small {
+            padding: 8px 16px;
+            font-size: 0.9rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+        
+        .btn-primary-small {
+            background: var(--primary-color);
+            color: white;
+        }
+        
+        .btn-outline-small {
+            background: transparent;
+            color: var(--primary-color);
+            border: 2px solid var(--primary-color);
+        }
+        
+        .btn-small:hover {
+            transform: translateY(-2px);
+        }
+        
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 20px 0;
+        }
+        
+        .results-count {
+            color: var(--text-secondary);
+            font-size: 1rem;
+        }
+        
+        .sort-select {
+            padding: 8px 12px;
+            border: 2px solid #E9ECEF;
+            border-radius: 6px;
+            background: white;
+        }
+        
+        .no-results {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-secondary);
+            display: none;
+        }
+        
+        .no-results-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            opacity: 0.3;
+        }
+        
+        .load-more {
+            text-align: center;
+            margin: 40px 0;
+        }
+        
+        .btn-load-more {
+            background: var(--accent-color);
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 25px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-load-more:hover {
+            background: var(--primary-color);
+            transform: translateY(-2px);
+        }
+        
+        .clear-filters {
+            background: var(--error-color);
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .clear-filters:hover {
+            background: #e74c3c;
+            transform: translateY(-2px);
+        }
+        
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .marketplace-title {
+                font-size: 2rem;
+            }
+            
+            .filters-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .products-grid {
+                grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+                gap: 20px;
+            }
+            
+            .results-header {
+                flex-direction: column;
+                gap: 15px;
+                align-items: stretch;
+            }
+            
+            .sustainability-filters {
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Marketplace Header -->
+        <header class="marketplace-header">
+            <div class="marketplace-title">🛍️ CraftConnect Marketplace</div>
+            <div class="marketplace-subtitle">Discover Authentic Sustainable Indian Crafts</div>
+        </header>
+
+        <!-- Navigation -->
+        <div style="text-align: center; margin-bottom: 30px;">
+            <a href="/" style="background: transparent; color: var(--primary-color); border: 2px solid var(--primary-color); padding: 10px 20px; border-radius: 20px; text-decoration: none; font-weight: 600; margin-right: 10px; transition: all 0.3s ease;">
+                <i class="fas fa-arrow-left"></i> Back to Dashboard
+            </a>
+            <a href="/analytics" style="background: transparent; color: var(--primary-color); border: 2px solid var(--primary-color); padding: 10px 20px; border-radius: 20px; text-decoration: none; font-weight: 600; transition: all 0.3s ease;">
+                <i class="fas fa-chart-bar"></i> View Analytics
+            </a>
+        </div>
+
+        <!-- Filters Section -->
+        <section class="filters-section">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 style="margin: 0; color: var(--text-primary);">
+                    <i class="fas fa-filter"></i>
+                    Filter & Search Products
+                </h3>
+                <button class="clear-filters" onclick="clearAllFilters()">
+                    <i class="fas fa-times"></i> Clear All
+                </button>
+            </div>
+            
+            <div class="filters-grid">
+                <div class="filter-group">
+                    <label class="filter-label">Search Products</label>
+                    <input type="text" id="search-input" class="filter-input" placeholder="Search by name, artisan, or description...">
+                </div>
+                
+                <div class="filter-group">
+                    <label class="filter-label">Category</label>
+                    <select id="category-filter" class="filter-select">
+                        <option value="">All Categories</option>
+                        <option value="paintings">Paintings</option>
+                        <option value="textiles">Textiles</option>
+                        <option value="jewelry">Jewelry</option>
+                        <option value="pottery">Pottery</option>
+                        <option value="metalwork">Metalwork</option>
+                        <option value="woodwork">Woodwork</option>
+                        <option value="stone_work">Stone Work</option>
+                        <option value="fiber_arts">Fiber Arts</option>
+                        <option value="leather">Leather Crafts</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label class="filter-label">Region</label>
+                    <select id="region-filter" class="filter-select">
+                        <option value="">All Regions</option>
+                        <option value="rajasthan">Rajasthan</option>
+                        <option value="gujarat">Gujarat</option>
+                        <option value="uttar pradesh">Uttar Pradesh</option>
+                        <option value="bihar">Bihar</option>
+                        <option value="west bengal">West Bengal</option>
+                        <option value="maharashtra">Maharashtra</option>
+                        <option value="karnataka">Karnataka</option>
+                        <option value="kerala">Kerala</option>
+                        <option value="tamil nadu">Tamil Nadu</option>
+                        <option value="odisha">Odisha</option>
+                        <option value="chhattisgarh">Chhattisgarh</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label class="filter-label">Price Range (₹)</label>
+                    <select id="price-filter" class="filter-select">
+                        <option value="">Any Price</option>
+                        <option value="0-500">Budget (₹0 - ₹500)</option>
+                        <option value="500-1500">Affordable (₹500 - ₹1,500)</option>
+                        <option value="1500-5000">Mid-range (₹1,500 - ₹5,000)</option>
+                        <option value="5000-15000">Premium (₹5,000 - ₹15,000)</option>
+                        <option value="15000-999999">Luxury (₹15,000+)</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="filter-group">
+                <label class="filter-label">Sustainability Features</label>
+                <div class="sustainability-filters">
+                    <div class="sustainability-tag" data-filter="organic">🌱 Organic Materials</div>
+                    <div class="sustainability-tag" data-filter="recycled">♻️ Recycled/Upcycled</div>
+                    <div class="sustainability-tag" data-filter="handmade">🤲 Handmade</div>
+                    <div class="sustainability-tag" data-filter="natural-dyes">🎨 Natural Dyes</div>
+                    <div class="sustainability-tag" data-filter="fair-trade">🤝 Fair Trade</div>
+                    <div class="sustainability-tag" data-filter="zero-waste">🌍 Zero Waste</div>
+                    <div class="sustainability-tag" data-filter="traditional">🏛️ Traditional Methods</div>
+                    <div class="sustainability-tag" data-filter="local">📍 Locally Sourced</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Results Header -->
+        <div class="results-header">
+            <div class="results-count">
+                <span id="results-count">0</span> products found
+            </div>
+            <select id="sort-select" class="sort-select">
+                <option value="relevance">Sort by Relevance</option>
+                <option value="price-low">Price: Low to High</option>
+                <option value="price-high">Price: High to Low</option>
+                <option value="eco-score">Eco Score: High to Low</option>
+                <option value="newest">Newest First</option>
+                <option value="popularity">Most Popular</option>
+            </select>
+        </div>
+
+        <!-- Products Grid -->
+        <section class="products-grid" id="products-grid">
+            <!-- Products will be dynamically loaded here -->
+        </section>
+
+        <!-- No Results Message -->
+        <div class="no-results" id="no-results">
+            <div class="no-results-icon">🔍</div>
+            <h3>No products found</h3>
+            <p>Try adjusting your filters or search terms</p>
+        </div>
+
+        <!-- Load More Button -->
+        <div class="load-more" id="load-more">
+            <button class="btn-load-more" onclick="loadMoreProducts()">
+                <i class="fas fa-plus"></i>
+                Load More Products
+            </button>
+        </div>
+    </div>
+
+    <script src="static/marketplace.js"></script>
+</body>
+</html>
