@@ -14,6 +14,7 @@ from datetime import datetime
 # Try importing ML libraries, fall back to basic functionality if not available
 try:
     import nltk
+    from zipfile import BadZipFile
     from nltk.corpus import stopwords
     from nltk.tokenize import word_tokenize
     from nltk.stem import PorterStemmer
@@ -89,7 +90,7 @@ class AutoTagger:
             try:
                 nltk.data.find('tokenizers/punkt')
                 nltk.data.find('corpora/stopwords')
-            except LookupError:
+            except (LookupError, BadZipFile):
                 print("Downloading NLTK data...")
                 nltk.download('punkt', quiet=True)
                 nltk.download('stopwords', quiet=True)
