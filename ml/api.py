@@ -7,12 +7,17 @@ Provides easy-to-use functions for integrating auto-tagging into applications
 from typing import Dict, List, Optional
 import json
 from .auto_tagging import AutoTagger, CraftItem, TaggingResult
+from .enhanced_features import EnhancedCraftAnalyzer, ImageAnalyzer
+from .indian_crafts import IndianCraftSpecialist
 
 class CraftConnectAPI:
     """Simple API wrapper for the auto-tagging system"""
     
     def __init__(self):
         self.tagger = AutoTagger()
+        self.enhanced_analyzer = EnhancedCraftAnalyzer()
+        self.image_analyzer = ImageAnalyzer()
+        self.indian_specialist = IndianCraftSpecialist()
     
     def tag_craft_from_dict(self, item_data: Dict) -> Dict:
         """
@@ -38,8 +43,22 @@ class CraftConnectAPI:
         # Tag the item
         result = self.tagger.tag_item(item)
         
+        # Run enhanced analysis
+        materials_list = item_data.get('materials')
+        if isinstance(materials_list, str):
+            materials_list = [m.strip() for m in materials_list.split(',')]
+        elif materials_list is None:
+            materials_list = result.materials
+        
+        enhanced_analysis = self.enhanced_analyzer.comprehensive_analysis(
+            item_data.get('title', ''),
+            item_data.get('description', ''),
+            item_data.get('price'),
+            materials_list
+        )
+        
         # Convert to dictionary for JSON serialization
-        return {
+        basic_results = {
             'categories': result.categories,
             'materials': result.materials,
             'sustainability_tags': result.sustainability_tags,
@@ -48,6 +67,20 @@ class CraftConnectAPI:
             'extracted_features': result.extracted_features,
             'confidence_scores': result.confidence_scores
         }
+        
+        # Run Indian craft analysis
+        indian_analysis = self.indian_specialist.comprehensive_indian_analysis(
+            item_data.get('title', ''),
+            item_data.get('description', ''),
+            item_data.get('location'),
+            materials_list
+        )
+        
+        # Combine basic, enhanced, and Indian analysis results
+        basic_results['enhanced_analysis'] = enhanced_analysis
+        basic_results['indian_analysis'] = indian_analysis
+        
+        return basic_results
     
     def tag_craft_simple(self, title: str, description: str, price: Optional[float] = None) -> Dict:
         """

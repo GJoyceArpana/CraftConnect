@@ -3,12 +3,15 @@
 Flask Web API for CraftConnect Auto-Tagging System
 """
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory, send_file, session
 from werkzeug.exceptions import BadRequest
 from werkzeug.utils import secure_filename
 import json
 import os
+import time
+import uuid
 from ml.api import get_api, CraftConnectAPI
+from realtime_analytics import get_analytics_instance
 
 app = Flask(__name__)
 
@@ -23,8 +26,69 @@ app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
 # Create uploads directory if it doesn't exist
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# Initialize the auto-tagging API
+# Initialize the auto-tagging API and analytics
 craft_api = get_api()
+analytics = get_analytics_instance()
+
+# Configure sessions
+app.secret_key = 'craft_connect_secret_2023'  # Change this in production!
+
+@app.before_request
+def before_request():
+    """Generate session ID for analytics tracking"""
+    if 'session_id' not in session:
+        session['session_id'] = str(uuid.uuid4())
+
+@app.route('/')
+def dashboard():
+    """Serve the main dashboard"""
+    return send_file('dashboard.html')
+
+@app.route('/analytics')
+def analytics_dashboard():
+    """Serve the advanced analytics dashboard"""
+    return send_file('analytics_dashboard.html')
+
+@app.route('/static/<path:filename>')
+def static_files(filename):
+    """Serve static files"""
+    return send_from_directory('static', filename)
+
+@app.route('/uploads/<path:filename>')
+def uploaded_files(filename):
+    """Serve uploaded image files"""
+    return send_from_directory(UPLOAD_FOLDER, filename)
+
+@app.route('/api/analytics/live')
+def live_analytics():
+    """Get live analytics data"""
+    try:
+        stats = analytics.get_live_stats()
+        return jsonify({
+            'success': True,
+            'analytics': stats
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Analytics error: {str(e)}'
+        }), 500
+
+@app.route('/api/analytics/trends')
+def analytics_trends():
+    """Get analytics trends data"""
+    try:
+        hours = request.args.get('hours', default=24, type=int)
+        trends = analytics.get_trends(hours)
+        return jsonify({
+            'success': True,
+            'trends': trends
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Trends error: {str(e)}'
+        }), 500
 
 def allowed_file(filename):
     """Check if the file extension is allowed"""
@@ -64,8 +128,12 @@ def upload_product():
     }
     """
     try:
+        session_id = session.get('session_id', 'unknown')
+        start_time = time.time()
+        
         # Check if request contains JSON data
         if not request.is_json:
+            analytics.track_analysis_failure(session_id, 'Invalid JSON data')
             return jsonify({
                 'success': False,
                 'error': 'Request must contain JSON data'
@@ -75,16 +143,21 @@ def upload_product():
         
         # Validate required fields
         if not data.get('title'):
+            analytics.track_analysis_failure(session_id, 'Title is required')
             return jsonify({
                 'success': False,
                 'error': 'Title is required'
             }), 400
             
         if not data.get('description'):
+            analytics.track_analysis_failure(session_id, 'Description is required')
             return jsonify({
                 'success': False,
                 'error': 'Description is required'
             }), 400
+        
+        # Track the analysis request
+        analytics.track_analysis_request(session_id, data)
         
         # Extract product data
         product_data = {
@@ -98,6 +171,10 @@ def upload_product():
         
         # Generate tags using the auto-tagging system
         tags = craft_api.tag_craft_from_dict(product_data)
+        
+        # Calculate processing time and track success
+        processing_time = time.time() - start_time
+        analytics.track_analysis_success(session_id, tags, processing_time)
         
         # Return success response
         return jsonify({
@@ -134,6 +211,9 @@ def upload_product_with_file():
     Returns JSON with product data, tags, and image info
     """
     try:
+        session_id = session.get('session_id', 'unknown')
+        start_time = time.time()
+        
         # Get form data
         title = request.form.get('title')
         description = request.form.get('description')
@@ -144,12 +224,14 @@ def upload_product_with_file():
         
         # Validate required fields
         if not title:
+            analytics.track_analysis_failure(session_id, 'Title is required')
             return jsonify({
                 'success': False,
                 'error': 'Title is required'
             }), 400
             
         if not description:
+            analytics.track_analysis_failure(session_id, 'Description is required')
             return jsonify({
                 'success': False,
                 'error': 'Description is required'
@@ -163,7 +245,6 @@ def upload_product_with_file():
                 if allowed_file(file.filename):
                     filename = secure_filename(file.filename)
                     # Add timestamp to avoid filename conflicts
-                    import time
                     timestamp = str(int(time.time()))
                     name, ext = os.path.splitext(filename)
                     filename = f"{name}_{timestamp}{ext}"
@@ -175,7 +256,9 @@ def upload_product_with_file():
                         'filename': filename,
                         'original_filename': file.filename,
                         'filepath': filepath,
-                        'size': os.path.getsize(filepath)
+                        'size': os.path.getsize(filepath),
+                        'url': f'/uploads/{filename}',
+                        'upload_timestamp': timestamp
                     }
                 else:
                     return jsonify({
@@ -199,8 +282,21 @@ def upload_product_with_file():
             'materials': materials
         }
         
+        # Track the analysis request
+        request_data = {
+            'title': title,
+            'description': description,
+            'price': float(price) if price else None,
+            'has_image': 'image' in request.files
+        }
+        analytics.track_analysis_request(session_id, request_data)
+        
         # Generate tags using the auto-tagging system
         tags = craft_api.tag_craft_from_dict(product_data)
+        
+        # Calculate processing time and track success
+        processing_time = time.time() - start_time
+        analytics.track_analysis_success(session_id, tags, processing_time)
         
         # Return success response
         response = {

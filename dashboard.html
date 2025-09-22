@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CraftConnect - AI-Powered Sustainable Craft Marketplace</title>
+    <link rel="stylesheet" href="static/style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header fade-in">
+            <div class="logo">🌿 CraftConnect</div>
+            <div class="tagline">AI-Powered Sustainable Craft Marketplace & Auto-Tagging System</div>
+            <div class="stats-bar">
+                <div class="stat-item">
+                    <div class="stat-number" id="crafts-analyzed">1,247</div>
+                    <div class="stat-label">Crafts Analyzed</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number" id="sustainability-score">0.87</div>
+                    <div class="stat-label">Avg Eco Score</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number" id="categories-detected">8</div>
+                    <div class="stat-label">Categories</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number" id="artisans-helped">156</div>
+                    <div class="stat-label">Artisans Helped</div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Demo Section -->
+        <section class="demo-section slide-up">
+            <h2 class="section-title">
+                <i class="fas fa-magic"></i>
+                Try Live Demo Examples
+            </h2>
+            <div class="demo-grid">
+                <div class="demo-card" onclick="loadDemo(0)">
+                    <div class="demo-title">🎨 Madhubani Painting</div>
+                    <div class="demo-description">Traditional Madhubani art on handmade paper with natural pigments by skilled Bihar artisan.</div>
+                </div>
+                <div class="demo-card" onclick="loadDemo(1)">
+                    <div class="demo-title">👕 Khadi Chikankari Kurta</div>
+                    <div class="demo-description">Pure khadi cotton kurta with intricate chikankari embroidery from Lucknow artisans.</div>
+                </div>
+                <div class="demo-card" onclick="loadDemo(2)">
+                    <div class="demo-title">🗿 Dhokra Brass Sculpture</div>
+                    <div class="demo-description">Traditional dhokra art brass sculpture using lost-wax casting by tribal artisans from Chhattisgarh.</div>
+                </div>
+                <div class="demo-card" onclick="loadDemo(3)">
+                    <div class="demo-title">🧣 Bandhani Silk Dupatta</div>
+                    <div class="demo-description">Vibrant bandhani tie-dye silk dupatta with mirror work using traditional Gujarati techniques.</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Upload Section -->
+            <section class="upload-section slide-up">
+                <h2 class="section-title">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    Analyze Your Craft
+                </h2>
+                
+                <form id="craft-form">
+                    <div class="form-group">
+                        <label class="form-label" for="title">Product Title *</label>
+                        <input type="text" id="title" name="title" class="form-input" 
+                               placeholder="e.g., Handmade Organic Cotton Bag" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="description">Description *</label>
+                        <textarea id="description" name="description" class="form-textarea" 
+                                  placeholder="Describe your craft, materials used, and any sustainability features..." required></textarea>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                        <label class="form-label" for="price">Price (₹)</label>
+                        <input type="number" id="price" name="price" class="form-input" 
+                               placeholder="2500" step="0.01" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="artisan">Artisan Name</label>
+                            <input type="text" id="artisan" name="artisan" class="form-input" 
+                                   placeholder="Your name or brand">
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label" for="location">Location</label>
+                            <input type="text" id="location" name="location" class="form-input" 
+                                   placeholder="City, Country">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="materials">Materials</label>
+                            <input type="text" id="materials" name="materials" class="form-input" 
+                                   placeholder="wood, cotton, recycled plastic">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="image">Product Image (Optional)</label>
+                        <input type="file" id="image" name="image" class="form-file" 
+                               accept="image/*">
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-sparkles"></i>
+                        Analyze with AI
+                    </button>
+                </form>
+                
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Analyzing your craft with AI...</p>
+                </div>
+                
+                <div id="status-message" class="status-message"></div>
+            </section>
+
+            <!-- Results Section -->
+            <section class="results-section slide-up">
+                <h2 class="section-title">
+                    <i class="fas fa-chart-line"></i>
+                    AI Analysis Results
+                </h2>
+                
+                <div class="results-container" id="results-container">
+                    <div class="result-card">
+                        <div class="result-title">🎯 Categories</div>
+                        <div class="tag-container" id="categories-tags"></div>
+                        <div class="confidence-bar">
+                            <div class="confidence-fill" id="categories-confidence"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="result-card">
+                        <div class="result-title">🧱 Materials Detected</div>
+                        <div class="tag-container" id="materials-tags"></div>
+                    </div>
+                    
+                    <div class="result-card">
+                        <div class="result-title">🌱 Sustainability Features</div>
+                        <div class="tag-container" id="sustainability-tags"></div>
+                    </div>
+                    
+                    <div class="score-display">
+                        <div>🌍 Eco-Impact Score</div>
+                        <div id="eco-score" style="font-size: 1.5em;">-</div>
+                    </div>
+                    
+                    <div class="result-card">
+                        <div class="result-title">💰 Price Category</div>
+                        <div class="tag-container">
+                            <span class="tag price" id="price-category">-</span>
+                        </div>
+                    </div>
+                    
+                    <div class="result-card">
+                        <div class="result-title">📊 Analysis Insights</div>
+                        <div id="insights-content">
+                            <div>Word Count: <span id="word-count">-</span></div>
+                            <div>Materials Found: <span id="material-count">-</span></div>
+                            <div>Confidence Level: <span id="overall-confidence">-</span>%</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="result-card" style="text-align: center; display: none;" id="initial-message">
+                    <i class="fas fa-lightbulb" style="font-size: 3rem; color: var(--primary-color); margin-bottom: 15px;"></i>
+                    <div class="result-title">Ready to Analyze!</div>
+                    <p style="color: var(--text-secondary);">Fill out the form or try a demo example to see our AI-powered auto-tagging system in action.</p>
+                </div>
+            </section>
+        </main>
+
+        <!-- API Information -->
+        <section class="demo-section slide-up">
+            <h2 class="section-title">
+                <i class="fas fa-code"></i>
+                API Endpoints & Integration
+            </h2>
+            <div style="background: #2d3748; color: #e2e8f0; padding: 20px; border-radius: 8px; font-family: 'Courier New', monospace;">
+                <div style="margin-bottom: 15px;">
+                    <strong style="color: #4fd1c7;">POST</strong> <span style="color: #f7fafc;">/api/products/upload</span> - Full JSON upload
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <strong style="color: #4fd1c7;">POST</strong> <span style="color: #f7fafc;">/api/products/upload/form</span> - Form data with image
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <strong style="color: #4fd1c7;">POST</strong> <span style="color: #f7fafc;">/api/products/upload/simple</span> - Simplified tagging
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <strong style="color: #4fd1c7;">GET</strong> <span style="color: #f7fafc;">/api/analytics/live</span> - Live analytics
+                </div>
+                <div>
+                    <strong style="color: #4fd1c7;">GET</strong> <span style="color: #f7fafc;">/api/health</span> - Health check
+                </div>
+            </div>
+        </section>
+        
+        <!-- Advanced Analytics Link -->
+        <div style="text-align: center; margin: 40px 0;">
+            <a href="/analytics" style="background: linear-gradient(45deg, var(--primary-color), var(--accent-color)); color: white; padding: 20px 40px; border-radius: 25px; text-decoration: none; font-weight: 600; font-size: 1.1rem; display: inline-block; transition: all 0.3s ease; box-shadow: 0 8px 25px rgba(46, 139, 87, 0.3);">
+                <i class="fas fa-chart-bar"></i>
+                View Advanced Analytics Dashboard
+            </a>
+        </div>
+    </div>
+
+    <script src="static/dashboard.js"></script>
+</body>
+</html>

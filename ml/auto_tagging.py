@@ -58,14 +58,15 @@ class AutoTagger:
     
     def __init__(self):
         self.craft_categories = {
-            'jewelry': ['ring', 'necklace', 'bracelet', 'earring', 'pendant', 'brooch', 'anklet'],
-            'textiles': ['scarf', 'bag', 'purse', 'clothing', 'fabric', 'embroidery', 'weaving', 'knitting'],
-            'pottery': ['vase', 'bowl', 'mug', 'plate', 'ceramic', 'clay', 'pottery'],
-            'woodwork': ['furniture', 'carving', 'sculpture', 'wooden', 'timber', 'oak', 'pine'],
-            'metalwork': ['steel', 'iron', 'copper', 'bronze', 'aluminum', 'metal'],
-            'glasswork': ['glass', 'blown', 'stained', 'crystal', 'mirror'],
-            'leather': ['leather', 'hide', 'suede', 'belt', 'wallet', 'boots'],
-            'fiber_arts': ['yarn', 'wool', 'cotton', 'silk', 'hemp', 'linen', 'crochet']
+            'jewelry': ['ring', 'necklace', 'bracelet', 'earring', 'pendant', 'brooch', 'anklet', 'kundan', 'meenakari', 'temple jewelry'],
+            'textiles': ['saree', 'dupatta', 'shawl', 'bag', 'kurta', 'embroidery', 'weaving', 'knitting', 'bandhani', 'block print', 'chikankari', 'phulkari'],
+            'pottery': ['vase', 'bowl', 'mug', 'plate', 'ceramic', 'clay', 'pottery', 'terracotta', 'blue pottery', 'khurja'],
+            'woodwork': ['furniture', 'carving', 'sculpture', 'wooden', 'sandalwood', 'rosewood', 'sheesham', 'inlay work'],
+            'metalwork': ['brass', 'copper', 'bronze', 'aluminum', 'metal', 'dhokra', 'bidriware', 'bell metal'],
+            'paintings': ['madhubani', 'warli', 'miniature', 'tanjore', 'gond', 'phad', 'kalamkari', 'canvas', 'painting'],
+            'leather': ['leather', 'hide', 'mojari', 'juti', 'belt', 'wallet', 'kolhapuri'],
+            'fiber_arts': ['yarn', 'wool', 'cotton', 'silk', 'jute', 'hemp', 'linen', 'crochet', 'khadi', 'handloom'],
+            'stone_work': ['marble', 'sandstone', 'granite', 'inlay', 'carving', 'sculpture', 'taj mahal style']
         }
         
         self.sustainable_materials = {
@@ -78,11 +79,11 @@ class AutoTagger:
         }
         
         self.price_categories = {
-            'budget': (0, 25),
-            'affordable': (25, 75),
-            'mid_range': (75, 200),
-            'premium': (200, 500),
-            'luxury': (500, float('inf'))
+            'budget': (0, 500),        # ₹0 - ₹500
+            'affordable': (500, 1500), # ₹500 - ₹1,500
+            'mid_range': (1500, 5000), # ₹1,500 - ₹5,000
+            'premium': (5000, 15000),  # ₹5,000 - ₹15,000
+            'luxury': (15000, float('inf'))  # ₹15,000+
         }
         
         # Initialize NLTK components if available
