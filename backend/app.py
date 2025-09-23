@@ -2,55 +2,41 @@ import json
 import os
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from services.price_service import suggest_price
 from estimator import estimate_eco_impact
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for frontend integration
 
 # JSON file paths
-PRICE_DATA_FILE = os.path.join(os.path.dirname(__file__), "data", "approved_prices.json")
 ECO_DATA_FILE = os.path.join(os.path.dirname(__file__), "..", "tests", "sample_data.json")
 
 # Create directories if they don't exist
-os.makedirs(os.path.dirname(PRICE_DATA_FILE), exist_ok=True)
 os.makedirs(os.path.dirname(ECO_DATA_FILE), exist_ok=True)
 
-# --- Price Service Routes ---
+# --- Price Service Routes (Placeholder for future implementation) ---
 
 @app.route("/suggest_price", methods=["POST"])
 def suggest_price_api():
-    """Suggest fair price for a product"""
+    """Suggest fair price for a product - placeholder"""
     try:
         data = request.get_json()
-        result = suggest_price(
-            data["category"], data["materials"], data["hours"], data["base_price"]
-        )
-        return jsonify(result)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/save_price", methods=["POST"])
-def save_price():
-    """Save approved price data"""
-    try:
-        data = request.get_json()
-
-        # Load existing JSON
-        if os.path.exists(PRICE_DATA_FILE):
-            with open(PRICE_DATA_FILE, "r") as f:
-                all_data = json.load(f)
-        else:
-            all_data = []
-
-        # Append new approved price entry
-        all_data.append(data)
-
-        # Save back to JSON
-        with open(PRICE_DATA_FILE, "w") as f:
-            json.dump(all_data, f, indent=4)
-
-        return jsonify({"message": "Price saved successfully!"})
+        # Simple price suggestion based on category and materials
+        base_price = data.get("base_price", 100)
+        category_multiplier = {
+            "terracotta": 1.2,
+            "textiles": 1.5,
+            "bamboo": 1.3,
+            "toys": 1.1,
+            "painting": 1.4
+        }
+        multiplier = category_multiplier.get(data.get("category", ""), 1.0)
+        suggested_price = base_price * multiplier
+        
+        return jsonify({
+            "suggested_price": round(suggested_price, 2),
+            "confidence": 0.8,
+            "message": "Price suggestion based on category analysis"
+        })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

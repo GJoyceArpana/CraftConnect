@@ -1,13 +1,17 @@
 // src/BuyerDashboard.tsx
 import { useState } from 'react';
 import type { FC } from 'react';
+import CarbonFootprintBadge, { CarbonFootprintCard } from '../components/CarbonFootprintBadge';
 
 type Product = {
   id: number;
   name: string;
   description: string;
   price: number;
-  co2Saved: number;
+  co2Saved: number; // for backward compatibility
+  co2SavingKg?: number; // new field from API
+  sustainabilityScore?: number;
+  wasteReductionPct?: number;
   category: string;
   image: string;
 };
@@ -404,9 +408,12 @@ const BuyerDashboard: FC<BuyerDashboardProps> = ({ user: initialUser, onNavigate
                         <span className="text-lg font-bold text-[#154731]">
                           ₹{product.price}
                         </span>
-                        <div className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
-                          🌱 -{product.co2Saved}kg CO₂
-                        </div>
+                        <CarbonFootprintBadge 
+                          co2Savings={product.co2SavingKg || product.co2Saved}
+                          sustainabilityScore={product.sustainabilityScore}
+                          size="small"
+                          showDetails={false}
+                        />
                       </div>
                     </div>
                   </div>
@@ -432,10 +439,16 @@ const BuyerDashboard: FC<BuyerDashboardProps> = ({ user: initialUser, onNavigate
               <h4 className="text-lg font-semibold">{selectedProduct.name}</h4>
               <p className="text-[#666]">{selectedProduct.description}</p>
 
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between mb-4">
                 <span className="text-2xl font-bold text-[#154731]">₹{selectedProduct.price}</span>
-                <div className="bg-green-100 text-green-700 px-3 py-1 rounded-full">🌱 Saves {selectedProduct.co2Saved}kg CO₂</div>
               </div>
+              
+              <CarbonFootprintCard 
+                co2Savings={selectedProduct.co2SavingKg || selectedProduct.co2Saved}
+                sustainabilityScore={selectedProduct.sustainabilityScore}
+                wasteReduction={selectedProduct.wasteReductionPct}
+                compactMode={false}
+              />
 
               <div className="flex gap-3 pt-4">
                 <button onClick={() => addToCart(selectedProduct)} className="btn-primary flex-1">🛒 Add to Cart</button>

@@ -44,14 +44,52 @@ const categories = [
 ];
 
 /**
- * Calculate CO2 impact and return a number (kg) with 1 decimal precision.
- * Returns a Number (not string) to avoid type mismatches.
+ * Calculate CO2 impact using the backend API
  */
-const calculateCO2Impact = (material: string, weightStr: string, process: string): number => {
+const calculateCO2ImpactAPI = async (formData: FormState): Promise<CarbonFootprintResponse | null> => {
+  try {
+    const weightInGrams = parseFloat(formData.weight) * 1000; // convert kg to grams
+    const packagingWeightInGrams = parseFloat(formData.packagingWeight || '0') * 1000;
+    const recycledPercent = parseFloat(formData.recycledMaterial || '0');
+    const distanceKm = parseFloat(formData.distanceToMarket || '50'); // default 50km
+
+    const apiPayload = {
+      weight_g: weightInGrams,
+      packaging_weight_g: packagingWeightInGrams,
+      distance_km_to_market: distanceKm,
+      category: formData.category,
+      percent_recycled_material: recycledPercent,
+      production_method: formData.process.toLowerCase(),
+      materials: formData.material,
+      name: formData.name
+    };
+
+    const response = await fetch('http://localhost:5000/carbon_footprint', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(apiPayload)
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to get carbon footprint calculation');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error calculating carbon footprint:', error);
+    return null;
+  }
+};
+
+/**
+ * Fallback simple CO2 calculation for when API is not available
+ */
+const calculateCO2ImpactFallback = (material: string, weightStr: string, process: string): number => {
   const baseCO2 = parseFloat(weightStr) || 1;
   const materialMultiplier: Record<string, number> = {
     clay: 0.8,
-    jute: 1.2,
     cotton: 0.9,
     bamboo: 1.5,
     wood: 1.3
@@ -59,7 +97,7 @@ const calculateCO2Impact = (material: string, weightStr: string, process: string
   const processMultiplier: Record<string, number> = {
     handmade: 2.0,
     traditional: 1.8,
-    sustainable: 2.2
+    'small-batch': 2.2
   };
 
   const materialKey = (material || '').toLowerCase();
@@ -69,7 +107,6 @@ const calculateCO2Impact = (material: string, weightStr: string, process: string
   const processFactor = processMultiplier[processKey] ?? 1.0;
 
   const raw = baseCO2 * materialFactor * processFactor;
-  // round to 1 decimal and return number
   return Math.round(raw * 10) / 10;
 };
 
@@ -82,28 +119,43 @@ const CreateProduct: React.FC<CreateProductProps> = ({ user, onNavigate, onBack 
     material: '',
     weight: '',
     process: '',
-    productImage: null
+    productImage: null,
+    packagingWeight: '0.05', // default 50g packaging
+    distanceToMarket: '50', // default 50km
+    recycledMaterial: '0' // default 0% recycled
   });
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [co2Prediction, setCo2Prediction] = useState<number>(0);
+  const [sustainabilityScore, setSustainabilityScore] = useState<number>(0);
+  const [isCalculating, setIsCalculating] = useState<boolean>(false);
 
-  const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  const handleInputChange = async (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    // update form data first
+    
     setFormData(prev => {
       const updated = { ...prev, [name]: value };
-
+      
       // calculate CO2 prediction when relevant fields change
-      if (name === 'material' || name === 'weight' || name === 'process') {
-        const material = name === 'material' ? value : updated.material;
-        const weight = name === 'weight' ? value : updated.weight;
-        const process = name === 'process' ? value : updated.process;
-
-        const prediction = calculateCO2Impact(material, weight, process);
-        // set numeric prediction
-        setCo2Prediction(prediction);
+      if (['category', 'material', 'weight', 'process', 'packagingWeight', 'distanceToMarket', 'recycledMaterial'].includes(name)) {
+        // Debounce API calls to avoid too many requests
+        setTimeout(async () => {
+          if (updated.category && updated.weight && updated.process) {
+            setIsCalculating(true);
+            const result = await calculateCO2ImpactAPI(updated);
+            if (result) {
+              setCo2Prediction(result.co2_saving_kg);
+              setSustainabilityScore(result.waste_reduction_pct);
+            } else {
+              // Fallback to simple calculation
+              const fallback = calculateCO2ImpactFallback(updated.material, updated.weight, updated.process);
+              setCo2Prediction(fallback);
+              setSustainabilityScore(0);
+            }
+            setIsCalculating(false);
+          }
+        }, 500); // 500ms debounce
       }
-
+      
       return updated;
     });
   };
@@ -132,7 +184,7 @@ const CreateProduct: React.FC<CreateProductProps> = ({ user, onNavigate, onBack 
     reader.readAsDataURL(file);
   };
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
     // basic validation
@@ -159,6 +211,27 @@ const CreateProduct: React.FC<CreateProductProps> = ({ user, onNavigate, onBack 
       return;
     }
 
+    // Get final carbon footprint calculation
+    let finalCarbonData = {
+      co2Prediction: co2Prediction || calculateCO2ImpactFallback(formData.material, formData.weight, formData.process),
+      sustainabilityScore,
+      co2SavingKg: co2Prediction,
+      wasteReductionPct: sustainabilityScore
+    };
+
+    if (!co2Prediction) {
+      // Try one more API call if we don't have data
+      const result = await calculateCO2ImpactAPI(formData);
+      if (result) {
+        finalCarbonData = {
+          co2Prediction: result.co2_saving_kg,
+          sustainabilityScore: result.waste_reduction_pct,
+          co2SavingKg: result.co2_saving_kg,
+          wasteReductionPct: result.waste_reduction_pct
+        };
+      }
+    }
+
     // Build product object
     const productData = {
       ...formData,
@@ -166,7 +239,11 @@ const CreateProduct: React.FC<CreateProductProps> = ({ user, onNavigate, onBack 
       sellerId: user?.id ?? null,
       sellerName: user?.name ?? 'Unknown Seller',
       price: priceNum,
-      co2Prediction: co2Prediction || calculateCO2Impact(formData.material, formData.weight, formData.process),
+      weight: parseFloat(formData.weight), // convert to number
+      packagingWeight: parseFloat(formData.packagingWeight),
+      distanceToMarket: parseFloat(formData.distanceToMarket),
+      recycledMaterial: parseFloat(formData.recycledMaterial),
+      ...finalCarbonData,
       createdAt: new Date().toISOString(),
       image: formData.productImage ?? 'https://images.pexels.com/photos/6474306/pexels-photo-6474306.jpeg?auto=compress&cs=tinysrgb&w=400'
     };
@@ -344,29 +421,106 @@ const CreateProduct: React.FC<CreateProductProps> = ({ user, onNavigate, onBack 
 
                 <div>
                   <label className="block text-sm font-medium text-[#333] mb-2">Process *</label>
-                  <input
-                    type="text"
+                  <select
                     name="process"
                     value={formData.process}
                     onChange={handleInputChange}
                     className="input-field"
-                    placeholder="e.g., Handmade, Traditional"
                     required
+                  >
+                    <option value="">Select production method</option>
+                    <option value="handmade">Handmade</option>
+                    <option value="small-batch">Small-batch</option>
+                    <option value="traditional">Traditional</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-4">
+                <div>
+                  <label className="block text-sm font-medium text-[#333] mb-2">Packaging Weight (kg)</label>
+                  <input
+                    type="number"
+                    name="packagingWeight"
+                    value={formData.packagingWeight}
+                    onChange={handleInputChange}
+                    className="input-field"
+                    placeholder="0.05"
+                    step="0.01"
+                    min="0"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-[#333] mb-2">Distance to Market (km)</label>
+                  <input
+                    type="number"
+                    name="distanceToMarket"
+                    value={formData.distanceToMarket}
+                    onChange={handleInputChange}
+                    className="input-field"
+                    placeholder="50"
+                    step="1"
+                    min="0"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-[#333] mb-2">Recycled Material (%)</label>
+                  <input
+                    type="number"
+                    name="recycledMaterial"
+                    value={formData.recycledMaterial}
+                    onChange={handleInputChange}
+                    className="input-field"
+                    placeholder="0"
+                    step="1"
+                    min="0"
+                    max="100"
                   />
                 </div>
               </div>
 
-              {/* CO2 Prediction Display */}
-              {co2Prediction > 0 && (
-                <div className="mt-6 p-4 bg-green-50 rounded-lg border border-green-200">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="font-semibold text-green-800 mb-1">🌱 Environmental Impact Prediction</h4>
-                      <p className="text-sm text-green-600">
-                        This product will help buyers save approximately <strong>{co2Prediction}kg of CO₂</strong> compared to mass-produced alternatives.
-                      </p>
+              {/* Environmental Impact Prediction Display */}
+              {isCalculating && (
+                <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <div className="flex items-center gap-3">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                    <span className="text-blue-700 font-medium">Calculating environmental impact...</span>
+                  </div>
+                </div>
+              )}
+              
+              {!isCalculating && (co2Prediction > 0 || sustainabilityScore > 0) && (
+                <div className="mt-6 p-6 bg-green-50 rounded-lg border border-green-200">
+                  <h4 className="font-semibold text-green-800 mb-4 text-lg">🌱 Environmental Impact Assessment</h4>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="flex items-center justify-between p-4 bg-white rounded-lg border border-green-300">
+                      <div>
+                        <h5 className="font-semibold text-green-800 mb-1">CO₂ Savings</h5>
+                        <p className="text-sm text-green-600">
+                          vs. mass production
+                        </p>
+                      </div>
+                      <div className="text-2xl font-bold text-green-700">{co2Prediction.toFixed(2)} kg</div>
                     </div>
-                    <div className="text-3xl font-bold text-green-700">{co2Prediction}kg</div>
+                    
+                    <div className="flex items-center justify-between p-4 bg-white rounded-lg border border-green-300">
+                      <div>
+                        <h5 className="font-semibold text-green-800 mb-1">Sustainability Score</h5>
+                        <p className="text-sm text-green-600">
+                          waste reduction potential
+                        </p>
+                      </div>
+                      <div className="text-2xl font-bold text-green-700">{sustainabilityScore.toFixed(1)}%</div>
+                    </div>
+                  </div>
+                  
+                  <div className="mt-4 p-3 bg-green-100 rounded-lg">
+                    <p className="text-sm text-green-700">
+                      <strong>Eco-friendly choice!</strong> This handcrafted product supports sustainable production methods and helps reduce environmental impact.
+                    </p>
                   </div>
                 </div>
               )}
