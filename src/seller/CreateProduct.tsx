@@ -22,13 +22,25 @@ type FormState = {
   weight: string; // kg as string from input
   process: string;
   productImage?: string | null;
+  // Additional fields for carbon footprint API
+  packagingWeight: string;
+  distanceToMarket: string;
+  recycledMaterial: string;
+};
+
+type CarbonFootprintResponse = {
+  carbon_footprint: number;
+  sustainability_score: number;
+  co2_saving_kg: number;
+  waste_reduction_pct: number;
 };
 
 const categories = [
   { id: 'terracotta', name: 'Terracotta' },
-  { id: 'jute', name: 'Jute & Bags' },
   { id: 'textiles', name: 'Textiles' },
-  { id: 'bamboo', name: 'Bamboo & Wood' }
+  { id: 'bamboo', name: 'Bamboo & Wood' },
+  { id: 'toys', name: 'Toys & Crafts' },
+  { id: 'painting', name: 'Painting & Arts' }
 ];
 
 /**
