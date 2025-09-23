@@ -1,0 +1,173 @@
+/* Custom styles for buyer dashboard and global components */
+
+.dashboard-card {
+  background: white;
+  border-radius: 14px;
+  box-shadow: 0 4px 12px rgba(20, 20, 20, 0.04);
+  padding: 24px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dashboard-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(20, 20, 20, 0.08);
+}
+
+.summary-card {
+  background: linear-gradient(135deg, #154731 0%, #1a5738 100%);
+  border-radius: 14px;
+  padding: 20px;
+  color: white;
+  box-shadow: 0 4px 12px rgba(21, 71, 49, 0.2);
+}
+
+.summary-card.secondary {
+  background: linear-gradient(135deg, #d67a4a 0%, #e08b5a 100%);
+}
+
+.summary-card.tertiary {
+  background: linear-gradient(135deg, #d6b24a 0%, #e0c35a 100%);
+}
+
+.product-card {
+  background: white;
+  border-radius: 14px;
+  box-shadow: 0 4px 12px rgba(20, 20, 20, 0.04);
+  overflow: hidden;
+  transition: all 0.3s ease;
+  border: 1px solid rgba(21, 71, 49, 0.1);
+}
+
+.product-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 32px rgba(20, 20, 20, 0.12);
+  border-color: #154731;
+}
+
+.btn-primary {
+  background-color: #d6b24a;
+  color: white;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  border: none;
+  cursor: pointer;
+}
+
+.btn-primary:hover {
+  background-color: #c4a238;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(214, 178, 74, 0.3);
+}
+
+.btn-secondary {
+  background-color: #2d3c6a;
+  color: white;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  border: none;
+  cursor: pointer;
+}
+
+.btn-secondary:hover {
+  background-color: #243055;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(45, 60, 106, 0.3);
+}
+
+.input-field {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 16px;
+  transition: border-color 0.2s ease;
+  background: white;
+}
+
+.input-field:focus {
+  outline: none;
+  border-color: #154731;
+  box-shadow: 0 0 0 3px rgba(21, 71, 49, 0.1);
+}
+
+.profile-card {
+  background: linear-gradient(135deg, #154731 0%, #1a5738 100%);
+  color: white;
+  border-radius: 14px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(21, 71, 49, 0.2);
+}
+
+.category-chip {
+  background: white;
+  border: 2px solid #154731;
+  color: #154731;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.category-chip:hover {
+  background: #154731;
+  color: white;
+  transform: translateY(-1px);
+}
+
+.category-chip.active {
+  background: #154731;
+  color: white;
+}
+
+.toast {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: #154731;
+  color: white;
+  padding: 12px 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(20, 20, 20, 0.2);
+  animation: slideIn 0.3s ease;
+  z-index: 1000;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 14px;
+  max-width: 500px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 40px rgba(20, 20, 20, 0.2);
+}
