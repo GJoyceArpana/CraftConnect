@@ -9,6 +9,7 @@ import BuyerSetPassword from './buyer/SetPassword';
 import BuyerSetupProfile from './buyer/SetupProfile';
 import BuyerDashboard from './buyer/Dashboard';
 import BuyerCart from './buyer/Cart';
+import CarbonFootprint from './buyer/CarbonFootprint';
 
 // Seller components
 import SellerLogin from './seller/Login';
@@ -182,6 +183,8 @@ function App() {
         return <BuyerDashboard user={currentUser} onNavigate={navigateTo} onLogout={logout} />;
       case 'buyer-cart':
         return <BuyerCart user={currentUser} onNavigate={navigateTo} onBack={navigateBack} />;
+      case 'buyer-carbon-footprint':
+        return <CarbonFootprint user={currentUser} onNavigate={navigateTo} onBack={navigateBack} />;
 
       // Seller routes
       case 'seller-login':

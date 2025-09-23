@@ -23,7 +23,12 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import json
 import os
+from dotenv import load_dotenv
 from estimator import estimate_eco_impact
+from twilio_service import twilio_service
+
+# Load environment variables
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '.env'))
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for frontend integration
@@ -49,7 +54,10 @@ def save_products(products):
 
 @app.route("/", methods=["GET"])
 def home():
-    return jsonify({"message": "Eco Impact API is running 🚀", "endpoints": ["/products", "/predict"]})
+    return jsonify({
+        "message": "CraftConnect Backend API is running 🚀", 
+        "endpoints": ["/products", "/predict", "/send-otp", "/verify-otp", "/send-sms"]
+    })
 
 @app.route("/products", methods=["GET"])
 def list_products():
@@ -74,6 +82,45 @@ def predict():
         "carbon_footprint": carbon,
         "sustainability_score": score
     })
+
+# Twilio endpoints for secure SMS operations
+@app.route("/send-otp", methods=["POST"])
+def send_otp():
+    """Send OTP via SMS using Twilio"""
+    data = request.json
+    phone_number = data.get('phone_number')
+    
+    if not phone_number:
+        return jsonify({'success': False, 'error': 'Phone number is required'}), 400
+    
+    result = twilio_service.send_otp(phone_number)
+    return jsonify(result)
+
+@app.route("/verify-otp", methods=["POST"])
+def verify_otp():
+    """Verify OTP using Twilio"""
+    data = request.json
+    phone_number = data.get('phone_number')
+    code = data.get('code')
+    
+    if not phone_number or not code:
+        return jsonify({'success': False, 'error': 'Phone number and code are required'}), 400
+    
+    result = twilio_service.verify_otp(phone_number, code)
+    return jsonify(result)
+
+@app.route("/send-sms", methods=["POST"])
+def send_sms():
+    """Send custom SMS using Twilio"""
+    data = request.json
+    phone_number = data.get('phone_number')
+    message = data.get('message')
+    
+    if not phone_number or not message:
+        return jsonify({'success': False, 'error': 'Phone number and message are required'}), 400
+    
+    result = twilio_service.send_sms(phone_number, message)
+    return jsonify(result)
 
 if __name__ == "__main__":
     app.run(debug=True)

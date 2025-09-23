@@ -272,6 +272,14 @@ const BuyerDashboard: FC<BuyerDashboardProps> = ({ user: initialUser, onNavigate
               </button>
 
               <button
+                onClick={() => onNavigate('buyer-carbon-footprint')}
+                className="flex items-center space-x-2 text-[#333] hover:text-[#154731] relative"
+              >
+                <span className="text-xl">🌱</span>
+                <span className="hidden sm:inline font-medium">Carbon Footprint</span>
+              </button>
+
+              <button
                 onClick={() => onNavigate('buyer-cart')}
                 className="flex items-center space-x-2 text-[#333] hover:text-[#154731] relative"
               >
@@ -325,10 +333,16 @@ const BuyerDashboard: FC<BuyerDashboardProps> = ({ user: initialUser, onNavigate
                   👤 View Profile
                 </button>
                 <button
+                  onClick={() => onNavigate('buyer-carbon-footprint')}
+                  className="w-full text-left text-white/90 hover:text-white hover:bg-white/10 px-3 py-2 rounded-lg transition"
+                >
+                  🌱 Carbon Footprint
+                </button>
+                <button
                   onClick={onLogout}
                   className="w-full text-left text-white/90 hover:text-white hover:bg-white/10 px-3 py-2 rounded-lg transition"
                 >
-                  🚪 Logout
+                  🚺 Logout
                 </button>
               </div>
             </div>
