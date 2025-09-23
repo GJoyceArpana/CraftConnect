@@ -11,7 +11,17 @@
   },
   {
     "name": "Madhubani Painting",
-    "category": "painting",
+    "category": "textiles",
+    "weight_g": 120,
+    "materials": "cotton",
+    "percent_recycled_material": 10,
+    "production_method": "handmade",
+    "distance_km_to_market": 40,
+    "packaging_weight_g": 30
+  },
+  {
+    "name": "Madhubani Painting",
+    "category": "painting and decorative arts",
     "weight_g": 200,
     "materials": "handmade paper",
     "percent_recycled_material": 60,
