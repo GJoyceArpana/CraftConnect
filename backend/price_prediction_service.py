@@ -15,7 +15,7 @@ except ImportError:
     print("Warning: CatBoost not available. Price prediction functionality will be disabled.")
 
 class PricePredictionService:
-    def __init__(self, model_path: str = "backend/catboost_craft_price.cbm"):
+    def __init__(self, model_path: str = "catboost_craft_price.cbm"):
         self.model = None
         self.model_path = model_path
         self.is_loaded = False

@@ -1,6 +1,7 @@
 // src/CreateProduct.tsx
 // src/CreateProduct.tsx
 import React, { useState, ChangeEvent, FormEvent } from 'react';
+import PriceSuggestions from '../components/PriceSuggestions';
 
 type User = {
   id?: string | number;
@@ -136,6 +137,9 @@ const CreateProduct: React.FC<CreateProductProps> = ({ user, onNavigate, onBack 
   const [estMaterial, setEstMaterial] = useState<string>(''); // material input for estimate
   const [estHours, setEstHours] = useState<string>(''); // hours of work as string (controlled input)
   const [estBasePrice, setEstBasePrice] = useState<string>(''); // base price input for estimate
+  
+  // AI Price Suggestions state
+  const [hoursOfLabor, setHoursOfLabor] = useState<number>(2); // Default 2 hours
 
   const [estimatedPrice, setEstimatedPrice] = useState<number | null>(null);
   const [estimating, setEstimating] = useState<boolean>(false);
@@ -248,6 +252,11 @@ const CreateProduct: React.FC<CreateProductProps> = ({ user, onNavigate, onBack 
   const applyEstimateAsPrice = () => {
     if (estimatedPrice === null) return;
     setFormData(prev => ({ ...prev, price: String(estimatedPrice) }));
+  };
+  
+  // Handle price selection from AI suggestions
+  const handlePriceSelection = (selectedPrice: number) => {
+    setFormData(prev => ({ ...prev, price: String(selectedPrice) }));
   };
 
   // Image upload (unchanged)
@@ -549,7 +558,20 @@ const CreateProduct: React.FC<CreateProductProps> = ({ user, onNavigate, onBack 
                 </div>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mt-4">
+                <div>
+                  <label className="block text-sm font-medium text-[#333] mb-2">Hours of Labor</label>
+                  <input
+                    type="number"
+                    value={hoursOfLabor}
+                    onChange={(e) => setHoursOfLabor(parseFloat(e.target.value) || 0)}
+                    className="input-field"
+                    placeholder="2"
+                    step="0.5"
+                    min="0"
+                  />
+                </div>
+                
                 <div>
                   <label className="block text-sm font-medium text-[#333] mb-2">Packaging Weight (kg)</label>
                   <input
@@ -657,107 +679,29 @@ const CreateProduct: React.FC<CreateProductProps> = ({ user, onNavigate, onBack 
           </form>
         </div>
 
-        {/* ---------- Estimate Panel (separate box) ---------- */}
+        {/* ---------- AI Price Suggestions Panel ---------- */}
         <div className="mt-6">
-          <div className="dashboard-card">
-            <h3 className="text-lg font-semibold text-[#333] mb-4">Get Estimated Price </h3>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <PriceSuggestions
+            formData={formData}
+            onPriceSelect={handlePriceSelection}
+            hoursOfLabor={hoursOfLabor}
+            className="dashboard-card"
+          />
+        </div>
+        
+        {/* Current Price Display */}
+        {formData.price && (
+          <div className="mt-4 p-4 bg-green-50 rounded-lg border border-green-200">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">💰</span>
               <div>
-                <label className="block text-sm font-medium text-[#333] mb-2">Category</label>
-                <select
-                  value={estCategory}
-                  onChange={(e) => setEstCategory(e.target.value)}
-                  className="input-field"
-                >
-                  <option value="">Select category</option>
-                  {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-[#333] mb-2">Material</label>
-                <input
-                  type="text"
-                  value={estMaterial}
-                  onChange={(e) => setEstMaterial(e.target.value)}
-                  className="input-field"
-                  placeholder="e.g., Clay, Jute, Cotton"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-[#333] mb-2">Hours of Work</label>
-                <input
-                  type="number"
-                  value={estHours}
-                  onChange={(e) => setEstHours(e.target.value)}
-                  className="input-field"
-                  placeholder="Enter hours"
-                  step="0.1"
-                  min="0"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-[#333] mb-2">Base Price (₹)</label>
-                <input
-                  type="number"
-                  value={estBasePrice}
-                  onChange={(e) => setEstBasePrice(e.target.value)}
-                  className="input-field"
-                  placeholder="Base cost / material cost"
-                  step="0.01"
-                  min="0"
-                />
-              </div>
-            </div>
-
-            <div className="flex items-start md:items-center gap-4">
-              <div className="flex-1">
-                <div className="p-4 rounded-lg border border-gray-200 bg-white">
-                  {estimating ? (
-                    <div className="text-sm text-[#666]">Calculating estimate... ⏳</div>
-                  ) : estimateError ? (
-                    <div className="text-sm text-red-600">Error: {estimateError}</div>
-                  ) : estimatedPrice !== null ? (
-                    <div className="flex items-baseline gap-3">
-                      <div className="text-3xl font-bold text-[#154731]">₹{estimatedPrice}</div>
-                      <div className="text-sm text-[#666]">Estimated price</div>
-                    </div>
-                  ) : (
-                    <div className="text-sm text-[#666]">Fill category, material, hours and base price, then click Get Estimate.</div>
-                  )}
-                </div>
-              </div>
-
-              <div className="w-full md:w-auto flex flex-col gap-3">
-                <button
-                  type="button"
-                  onClick={fetchEstimatedPrice}
-                  className="hero-button w-full md:w-auto"
-                  disabled={estimating}
-                >
-                  {estimating ? 'Estimating...' : 'Get Estimate'}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={applyEstimateAsPrice}
-                  className="btn-secondary w-full md:w-auto"
-                  disabled={estimatedPrice === null}
-                >
-                  Use estimate as final price
-                </button>
-
-                <div className="mt-2 text-sm text-[#666]">
-                  Current final price: {formData.price ? `₹${formData.price}` : 'Not set'}
-                </div>
+                <h4 className="font-medium text-green-800">Current Final Price</h4>
+                <div className="text-2xl font-bold text-green-700">₹{formData.price}</div>
               </div>
             </div>
           </div>
-        </div>
-        {/* ---------- End Estimate Panel ---------- */}
+        )}
+        {/* ---------- End AI Price Suggestions Panel ---------- */}
       </div>
     </div>
   );
