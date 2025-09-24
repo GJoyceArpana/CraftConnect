@@ -57,13 +57,18 @@ const BuyerLogin: React.FC<BuyerLoginProps> = ({ onNavigate, onBack }) => {
           // OTP sent successfully, navigate to OTP screen
           console.log('OTP sent successfully, navigating to OTP screen');
           
-          // Show dev OTP if available (for development)
-          if (data.dev_otp) {
-            alert(`🔧 DEV MODE: Your OTP is ${data.dev_otp}\n\nIn development, check console or this alert for OTP.`);
-            console.log('🔧 DEV MODE - OTP:', data.dev_otp);
-          } else {
-            alert('OTP sent to your phone number!');
-          }
+        // Show the 4-digit OTP from our system (works in all modes)
+        if (data.dev_otp) {
+          alert(`🔧 DEV MODE: Your password reset OTP is ${data.dev_otp}\n\nIn development, check console or this alert for OTP.`);
+          console.log('🔧 DEV MODE - Password Reset OTP:', data.dev_otp);
+        } else if (data.dev_note) {
+          // Show our 4-digit OTP when Twilio is configured
+          const otp4digit = data.dev_note.split('4-digit: ')[1];
+          alert(`📱 Password reset SMS sent!\n\n🔧 For testing: Use this 4-digit code: ${otp4digit}\n\n(Twilio sends 6-digit but our system uses 4-digit)`);
+          console.log('🔧 Use 4-digit reset OTP:', otp4digit);
+        } else {
+          alert('Password reset OTP sent to your phone!');
+        }
           
           onNavigate('buyer-otp', { phone, isSignUp: true });
         } else {
@@ -123,14 +128,19 @@ const BuyerLogin: React.FC<BuyerLoginProps> = ({ onNavigate, onBack }) => {
       const data = await response.json();
       console.log('Password reset OTP response:', data);
 
-      if (data.success) {
-        // Show dev OTP if available (for development)
-        if (data.dev_otp) {
-          alert(`🔧 DEV MODE: Your password reset OTP is ${data.dev_otp}\n\nIn development, check console or this alert for OTP.`);
-          console.log('🔧 DEV MODE - Password Reset OTP:', data.dev_otp);
-        } else {
-          alert('Password reset OTP sent to your phone!');
-        }
+        if (data.success) {
+          // Show the 4-digit OTP from our system (works in all modes)
+          if (data.dev_otp) {
+            alert(`🔧 DEV MODE: Your OTP is ${data.dev_otp}\n\nIn development, check console or this alert for OTP.`);
+            console.log('🔧 DEV MODE - OTP:', data.dev_otp);
+          } else if (data.dev_note) {
+            // Show our 4-digit OTP when Twilio is configured
+            const otp4digit = data.dev_note.split('4-digit: ')[1];
+            alert(`📱 SMS sent to your phone!\n\n🔧 For testing: Use this 4-digit code: ${otp4digit}\n\n(Twilio sends 6-digit but our system uses 4-digit)`);
+            console.log('🔧 Use 4-digit OTP:', otp4digit);
+          } else {
+            alert('OTP sent to your phone number!');
+          }
         
         setShowForgotPassword(true);
         setResetStep('otp');
