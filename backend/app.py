@@ -9,6 +9,7 @@ from twilio.rest import Client
 from estimator import estimate_eco_impact
 from gemini_service import GeminiChatbotService
 from local_storage_service import get_local_storage_service
+from price_prediction_service import price_service
 
 # Load environment variables
 try:
@@ -116,7 +117,7 @@ def save_products(products):
 
 @app.route("/suggest_price", methods=["POST"])
 def suggest_price_api():
-    """Suggest fair price for a product"""
+    """Suggest fair price for a product (legacy endpoint)"""
     try:
         data = request.get_json()
         # Simple price suggestion based on category and materials
@@ -135,6 +136,68 @@ def suggest_price_api():
             "suggested_price": round(suggested_price, 2),
             "confidence": 0.8,
             "message": "Price suggestion based on category analysis"
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/predict_price", methods=["POST"])
+def predict_price_api():
+    """AI-powered price prediction using CatBoost model"""
+    try:
+        data = request.get_json()
+        
+        # Validate required fields
+        required_fields = ['base_material_price', 'dimensions', 'hours_of_labor', 'transport_distance']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({"error": f"Missing required field: {field}"}), 400
+        
+        # Use the price prediction service
+        prediction = price_service.predict_price(data)
+        
+        if prediction:
+            return jsonify({
+                "success": True,
+                "prediction": prediction
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "error": "Price prediction model not available",
+                "fallback_available": True
+            }), 503
+            
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/price_suggestions", methods=["POST"])
+def get_price_suggestions_api():
+    """Get comprehensive price suggestions including AI and rule-based methods"""
+    try:
+        data = request.get_json()
+        
+        # Extract base price from data
+        base_price = data.get('base_material_price', data.get('base_price', 100))
+        
+        # Get comprehensive suggestions
+        suggestions = price_service.get_price_suggestions(base_price, data)
+        
+        return jsonify({
+            "success": True,
+            "suggestions": suggestions
+        })
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/price_model_status", methods=["GET"])
+def get_price_model_status():
+    """Check if the AI price prediction model is available"""
+    try:
+        return jsonify({
+            "model_available": price_service.is_loaded,
+            "model_path": price_service.model_path,
+            "catboost_available": price_service.__class__.__module__ != '__main__'
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
