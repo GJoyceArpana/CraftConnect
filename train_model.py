@@ -64,3 +64,50 @@ sample = X_test[0].reshape(1, -1)
 print("Example features:", sample)
 print("Predicted carbon footprint:", model.predict(sample))
 print("Actual carbon footprint:", y_test[0])
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from catboost import CatBoostRegressor
+from sklearn.metrics import r2_score
+
+# Load dataset
+df = pd.read_csv('synthetic_craft_prices.csv')
+
+# Feature columns
+categorical_features = ['Region', 'Category', 'Crafting Process']
+numeric_features = ['Base Material Price', 'Dimensions', 'Hours of Labor', 'Transport Distance']
+feature_cols = numeric_features + categorical_features
+
+X = df[feature_cols]
+y = df['Price']
+
+# Split dataset
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+print("Preprocessing done. Shapes:", X_train.shape, X_test.shape)
+
+# Initialize CatBoost Regressor
+model = CatBoostRegressor(
+    iterations=1000,
+    learning_rate=0.05,
+    depth=6,
+    loss_function='RMSE',
+    eval_metric='R2',
+    random_seed=42,
+    verbose=100
+)
+
+# Train model
+model.fit(
+    X_train, y_train,
+    cat_features=categorical_features,
+    eval_set=(X_test, y_test),
+    early_stopping_rounds=50
+)
+
+# Evaluate
+y_pred = model.predict(X_test)
+r2 = r2_score(y_test, y_pred)
+print("R² Score:", r2)
+
+# Save trained model
+model.save_model("catboost_craft_price.cbm")
+print("Model saved as 'catboost_craft_price.cbm'")

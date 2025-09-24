@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Craft Price Predictor</title>
+    <script>
+      async function predictPrice(event) {
+        event.preventDefault();
+
+        // Collect input values
+        const data = {
+          Region: document.getElementById("region").value,
+          Category: document.getElementById("category").value,
+          "Crafting Process": document.getElementById("process").value,
+          "Base Material Price": parseFloat(
+            document.getElementById("base_price").value
+          ),
+          Dimensions: parseFloat(document.getElementById("dimensions").value),
+          "Hours of Labor": parseFloat(document.getElementById("hours").value),
+          "Transport Distance": parseFloat(
+            document.getElementById("distance").value
+          ),
+        };
+
+        // Send POST request to backend
+        const response = await fetch("/predict", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        });
+        const result = await response.json();
+
+        if (result.error) {
+          alert("Error: " + result.error);
+        } else {
+          document.getElementById(
+            "result"
+          ).innerHTML = `Predicted Price: ₹${result.predicted_price}<br>
+           Price Range: ₹${result.price_range[0]} - ₹${result.price_range[1]}`;
+        }
+
+        loadHistory(); // Update history table
+      }
+
+      async function loadHistory() {
+        const response = await fetch("/history");
+        const history = await response.json();
+        let tableHTML =
+          "<tr><th>Region</th><th>Category</th><th>Process</th><th>Base Price</th><th>Dimensions</th><th>Hours</th><th>Distance</th><th>Predicted</th><th>Range</th></tr>";
+        history.forEach((item) => {
+          tableHTML += `<tr>
+          <td>${item.Region}</td>
+          <td>${item.Category}</td>
+          <td>${item["Crafting Process"]}</td>
+          <td>${item["Base Material Price"]}</td>
+          <td>${item.Dimensions}</td>
+          <td>${item["Hours of Labor"]}</td>
+          <td>${item["Transport Distance"]}</td>
+          <td>${item["Predicted Price"]}</td>
+          <td>${item["Price Min"]} - ${item["Price Max"]}</td>
+        </tr>`;
+        });
+        document.getElementById("history").innerHTML = tableHTML;
+      }
+
+      window.onload = loadHistory;
+    </script>
+  </head>
+  <body>
+    <h1>Craft Price Predictor</h1>
+    <form onsubmit="predictPrice(event)">
+      <label>Region:</label>
+      <input id="region" type="text" required /><br />
+      <label>Category:</label>
+      <input id="category" type="text" required /><br />
+      <label>Crafting Process:</label>
+      <input id="process" type="text" required /><br />
+      <label>Base Material Price:</label>
+      <input id="base_price" type="number" required /><br />
+      <label>Dimensions:</label>
+      <input id="dimensions" type="number" required /><br />
+      <label>Hours of Labor:</label>
+      <input id="hours" type="number" required /><br />
+      <label>Transport Distance:</label>
+      <input id="distance" type="number" required /><br />
+      <button type="submit">Predict Price</button>
+    </form>
+
+    <h2>Prediction Result:</h2>
+    <div id="result"></div>
+
+    <h2>Prediction History:</h2>
+    <table border="1" id="history"></table>
+  </body>
+</html>
