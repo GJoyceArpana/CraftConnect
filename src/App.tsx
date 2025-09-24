@@ -1,6 +1,11 @@
 // src/App.tsx
 import { useState, useEffect } from 'react';
 import Home from './Home';
+import { UserService } from './firebase/userService';
+import './firebase/adminUtils'; // Make AdminUtils available in console
+import './resetAccount'; // Make reset function available
+import './firebase/passwordReset'; // Make PasswordResetService available
+import './firebase/testConnection'; // Make Firebase test available
 
 // Buyer components
 import BuyerLogin from './buyer/Login';
@@ -51,34 +56,39 @@ function App() {
   // tempUserData starts empty and later becomes BuyerTempData or SellerTempData (partially)
   const [tempUserData, setTempUserData] = useState<TempUserData>({});
 
-  // Initialize from localStorage on mount
+  // Initialize from localStorage/Firebase on mount
   useEffect(() => {
-    try {
-      const buyerDataRaw = localStorage.getItem('cc_buyer');
-      const sellerDataRaw = localStorage.getItem('cc_seller');
+    const initializeUser = async () => {
+      try {
+        // First check localStorage for quick initialization
+        const buyerDataRaw = localStorage.getItem('cc_buyer');
+        const sellerDataRaw = localStorage.getItem('cc_seller');
 
-      if (buyerDataRaw) {
-        const buyer = JSON.parse(buyerDataRaw);
-        if (buyer?.isComplete) {
-          setCurrentUser({ ...buyer, type: 'buyer' });
-          setRoute('buyer-dashboard');
-          setNavigationStack(['buyer-dashboard']);
-          return;
+        if (buyerDataRaw) {
+          const buyer = JSON.parse(buyerDataRaw);
+          if (buyer?.isComplete) {
+            setCurrentUser({ ...buyer, type: 'buyer' });
+            setRoute('buyer-dashboard');
+            setNavigationStack(['buyer-dashboard']);
+            return;
+          }
         }
-      }
 
-      if (sellerDataRaw) {
-        const seller = JSON.parse(sellerDataRaw);
-        if (seller?.isComplete) {
-          setCurrentUser({ ...seller, type: 'seller' });
-          setRoute('seller-dashboard');
-          setNavigationStack(['seller-dashboard']);
-          return;
+        if (sellerDataRaw) {
+          const seller = JSON.parse(sellerDataRaw);
+          if (seller?.isComplete) {
+            setCurrentUser({ ...seller, type: 'seller' });
+            setRoute('seller-dashboard');
+            setNavigationStack(['seller-dashboard']);
+            return;
+          }
         }
+      } catch (err) {
+        console.error('Failed to initialize user from localStorage', err);
       }
-    } catch (err) {
-      console.error('Failed to initialize user from localStorage', err);
-    }
+    };
+
+    initializeUser();
   }, []);
 
   /**

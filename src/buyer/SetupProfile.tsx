@@ -1,5 +1,6 @@
 // src/BuyerSetupProfile.tsx
 import React, { useState, ChangeEvent, FormEvent } from 'react';
+import { UserService } from '../firebase/userService';
 
 type TempData = {
   phone?: string;
@@ -50,6 +51,7 @@ const BuyerSetupProfile: React.FC<BuyerSetupProfileProps> = ({
   });
 
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -78,42 +80,50 @@ const BuyerSetupProfile: React.FC<BuyerSetupProfileProps> = ({
     reader.readAsDataURL(file);
   };
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
 
     // basic pincode validation (6 digits)
     const pincodeValue = formData.pincode?.trim() ?? '';
     if (!/^\d{6}$/.test(pincodeValue)) {
       alert('Please enter a valid 6-digit PIN code');
+      setIsLoading(false);
       return;
     }
 
-    // Create complete user data
-    const userId = (tempData && tempData.id) ? String(tempData.id) : Date.now().toString();
-    const userData: UserData = {
-      ...tempData,
-      ...formData,
-      isComplete: true,
-      type: 'buyer',
-      id: userId
-    };
-
-    // Save to localStorage (defensive)
     try {
-      localStorage.setItem('cc_buyer', JSON.stringify(userData));
-    } catch (err) {
-      console.error('Failed to save buyer profile to localStorage', err);
-    }
+      // Save to Firestore
+      if (tempData.phone) {
+        await UserService.completeProfile(tempData.phone, formData, 'buyer');
 
-    // Notify parent / update app-level user state if callback provided
-    try {
-      if (typeof onUpdateUser === 'function') onUpdateUser(userData);
-    } catch (err) {
-      console.error('onUpdateUser callback threw', err);
-    }
+        // Build user data for app state/local
+        const userId = (tempData && tempData.id) ? String(tempData.id) : Date.now().toString();
+        const userData: UserData = {
+          ...tempData,
+          ...formData,
+          isComplete: true,
+          type: 'buyer',
+          id: userId
+        };
 
-    // Navigate to dashboard
-    onNavigate('buyer-dashboard');
+        // Update app state if callback exists
+        try {
+          if (typeof onUpdateUser === 'function') onUpdateUser(userData);
+        } catch (err) {
+          console.error('onUpdateUser callback threw', err);
+        }
+
+        onNavigate('buyer-dashboard');
+      } else {
+        alert('Error: Phone number not found. Please start over.');
+      }
+    } catch (err) {
+      console.error('Failed to save buyer profile', err);
+      alert('Failed to save profile. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -220,8 +230,8 @@ const BuyerSetupProfile: React.FC<BuyerSetupProfileProps> = ({
               </div>
             </div>
 
-            <button type="submit" className="btn-primary w-full">
-              Complete Setup
+            <button type="submit" className="btn-primary w-full" disabled={isLoading}>
+              {isLoading ? 'Saving...' : 'Complete Setup'}
             </button>
           </form>
 

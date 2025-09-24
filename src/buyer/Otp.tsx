@@ -50,8 +50,10 @@ const BuyerOtp: React.FC<BuyerOtpProps> = ({ onNavigate, onBack, tempData = {} }
       if (data.success) {
         // OTP verified successfully
         if (tempData.isSignUp) {
+          // For signup, go to set password
           onNavigate('buyer-setpassword', tempData);
         } else {
+          // For existing user login via OTP, go to dashboard
           onNavigate('buyer-dashboard');
         }
       } else {

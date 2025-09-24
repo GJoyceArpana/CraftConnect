@@ -1,5 +1,6 @@
 // src/SellerLogin.tsx
 import React, { useState, FormEvent } from 'react';
+import { UserService } from '../firebase/userService';
 
 type NavigateFn = (path: string, payload?: any) => void;
 
@@ -19,8 +20,19 @@ const SellerLogin: React.FC<SellerLoginProps> = ({ onNavigate, onBack }) => {
     setIsLoading(true);
 
     if (isSignUp) {
-      // Sign up flow - call send-otp API first
+      // Sign up flow - check if user already exists, then send OTP
       try {
+        const userExists = await UserService.userExists(phone, 'seller');
+        if (userExists) {
+          alert('Account already exists with this phone number. Please login instead.');
+          setIsLoading(false);
+          return;
+        }
+
+        // Create initial seller record
+        await UserService.createSeller({ phone, isComplete: false });
+
+        // Send OTP
         const response = await fetch('http://localhost:5000/send-otp', {
           method: 'POST',
           headers: {
@@ -38,32 +50,31 @@ const SellerLogin: React.FC<SellerLoginProps> = ({ onNavigate, onBack }) => {
           alert(data.error || 'Failed to send OTP. Please try again.');
         }
       } catch (error) {
-        console.error('Error sending OTP:', error);
-        alert('Network error. Please check your connection and try again.');
+        console.error('Error in signup:', error);
+        alert('Error creating account. Please try again.');
       } finally {
         setIsLoading(false);
       }
       return;
     }
 
-    // Login flow - check if user exists in localStorage
+    // Login flow - verify with Firebase
     try {
-      const existingUserRaw = localStorage.getItem('cc_seller');
-      if (!existingUserRaw) {
-        alert('Account not found. Please sign up first.');
-        return;
-      }
-
-      const userData = JSON.parse(existingUserRaw);
-      // If you store multiple sellers, adapt this check accordingly
-      if (userData.phone === phone && userData.password === password) {
-        onNavigate('seller-dashboard');
+      const user = await UserService.verifyLogin(phone, password, 'seller');
+      if (user) {
+        if (user.isComplete) {
+          // User profile is complete, go to dashboard
+          onNavigate('seller-dashboard');
+        } else {
+          // User exists but profile incomplete, go to setup
+          onNavigate('seller-setup', { phone });
+        }
       } else {
-        alert('Invalid credentials');
+        alert('Invalid phone number or password. Please try again.');
       }
     } catch (err) {
-      console.error('Error reading seller from storage', err);
-      alert('An error occurred. Please try again.');
+      console.error('Error during login:', err);
+      alert('Login failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
