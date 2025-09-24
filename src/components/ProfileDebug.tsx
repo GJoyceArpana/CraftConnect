@@ -24,24 +24,24 @@ export const ProfileDebug: React.FC = () => {
         seller: sellerData ? JSON.parse(sellerData) : null,
         user: userData ? JSON.parse(userData) : null
       };
-      results.push(`✅ localStorage check completed`);
+      results.push('✅ localStorage check completed');
 
       // Test Firebase connection
       try {
         const testUser = await UserService.getBuyer('test-phone');
-        results.push(`✅ Firebase connection working`);
+        results.push('✅ Firebase connection working');
         info.firebase = 'Connected';
       } catch (error) {
-        results.push(`❌ Firebase error: ${error}`);
-        info.firebase = `Error: ${error}`;
+        results.push('❌ Firebase error: ' + error);
+        info.firebase = 'Error: ' + error;
       }
 
       // Check current URL and route state
       info.currentUrl = window.location.href;
-      results.push(`✅ Current URL: ${info.currentUrl}`);
+      results.push('✅ Current URL: ' + info.currentUrl);
 
     } catch (error) {
-      results.push(`❌ Diagnostic error: ${error}`);
+      results.push('❌ Diagnostic error: ' + error);
     }
 
     setDebugInfo(info);
@@ -71,25 +71,25 @@ export const ProfileDebug: React.FC = () => {
         });
       }
       
-      setTestResults(prev => [...prev, `✅ ${userType} test user created`]);
+      setTestResults(prev => [...prev, '✅ ' + userType + ' test user created']);
       
       // Try to verify login
       const user = await UserService.verifyLogin(testPhone, testPassword, userType);
       if (user) {
-        setTestResults(prev => [...prev, `✅ ${userType} login verification successful`]);
+        setTestResults(prev => [...prev, '✅ ' + userType + ' login verification successful']);
         
         // Store in localStorage like the app does
-        localStorage.setItem(`cc_${userType}`, JSON.stringify(user));
-        setTestResults(prev => [...prev, `✅ ${userType} stored in localStorage`]);
+        localStorage.setItem('cc_' + userType, JSON.stringify(user));
+        setTestResults(prev => [...prev, '✅ ' + userType + ' stored in localStorage']);
         
         // Refresh diagnostics
         runDiagnostics();
       } else {
-        setTestResults(prev => [...prev, `❌ ${userType} login verification failed`]);
+        setTestResults(prev => [...prev, '❌ ' + userType + ' login verification failed']);
       }
       
     } catch (error) {
-      setTestResults(prev => [...prev, `❌ ${userType} test failed: ${error}`);
+      setTestResults(prev => [...prev, '❌ ' + userType + ' test failed: ' + error]);
     }
   };
 
@@ -97,7 +97,7 @@ export const ProfileDebug: React.FC = () => {
     localStorage.removeItem('cc_buyer');
     localStorage.removeItem('cc_seller');
     localStorage.removeItem('cc_user');
-    setTestResults(prev => [...prev, `🗑️ Cleared all localStorage data`]);
+    setTestResults(prev => [...prev, '🗑️ Cleared all localStorage data']);
     runDiagnostics();
   };
 
