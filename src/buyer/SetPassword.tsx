@@ -1,5 +1,6 @@
 // src/BuyerSetPassword.tsx
 import React, { useState, FormEvent } from 'react';
+import { UserService } from '../firebase/userService';
 
 type TempData = {
   phone?: string;
@@ -18,22 +19,39 @@ type BuyerSetPasswordProps = {
 const BuyerSetPassword: React.FC<BuyerSetPasswordProps> = ({ onNavigate, onBack, tempData = {} }) => {
   const [password, setPassword] = useState<string>('');
   const [confirmPassword, setConfirmPassword] = useState<string>('');
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
 
     if (password.length < 6) {
       alert('Password must be at least 6 characters long');
+      setIsLoading(false);
       return;
     }
 
     if (password !== confirmPassword) {
       alert('Passwords do not match');
+      setIsLoading(false);
       return;
     }
 
-    // Proceed to next step with the tempData payload + password
-    onNavigate('buyer-setup', { ...tempData, password });
+    try {
+      // Save password to Firebase
+      if (tempData.phone) {
+        await UserService.setUserPassword(tempData.phone, password, 'buyer');
+        // Proceed to profile setup
+        onNavigate('buyer-setup', { ...tempData, password });
+      } else {
+        alert('Error: Phone number not found. Please start over.');
+      }
+    } catch (error) {
+      console.error('Error setting password:', error);
+      alert('Failed to save password. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const isValidLength = password.length >= 6;
@@ -84,9 +102,9 @@ const BuyerSetPassword: React.FC<BuyerSetPasswordProps> = ({ onNavigate, onBack,
           <button
             type="submit"
             className="btn-primary w-full"
-            aria-disabled={!(isValidLength && isMatch)}
+            disabled={!(isValidLength && isMatch) || isLoading}
           >
-            Create Password
+            {isLoading ? 'Creating...' : 'Create Password'}
           </button>
         </form>
 

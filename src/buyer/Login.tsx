@@ -1,5 +1,7 @@
 // src/BuyerLogin.tsx
 import React, { useState, FormEvent } from 'react';
+import { UserService } from '../firebase/userService';
+import { apiService } from '../services/api';
 
 type NavigateFn = (path: string, payload?: any) => void;
 
@@ -12,37 +14,184 @@ const BuyerLogin: React.FC<BuyerLoginProps> = ({ onNavigate, onBack }) => {
   const [phone, setPhone] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [isSignUp, setIsSignUp] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [showForgotPassword, setShowForgotPassword] = useState<boolean>(false);
+  const [otp, setOtp] = useState<string>('');
+  const [newPassword, setNewPassword] = useState<string>('');
+  const [resetStep, setResetStep] = useState<'phone' | 'otp' | 'password'>('phone');
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
 
     if (isSignUp) {
-      // Sign up flow - go to OTP screen and pass phone/isSignUp flag.
-      // The route handler (buyer-otp) can read the payload and show OTP UI.
-      onNavigate('buyer-otp', { phone, isSignUp: true });
+      // Sign up flow - check if user already exists, then send OTP
+      try {
+        const userExists = await UserService.userExists(phone, 'buyer');
+        if (userExists) {
+          alert('Account already exists with this phone number. Please login instead.');
+          setIsLoading(false);
+          return;
+        }
+
+        console.log('Creating buyer record for phone:', phone);
+        
+        // Create initial buyer record
+        await UserService.createBuyer({ phone, isComplete: false });
+        console.log('Buyer record created successfully');
+
+        // Send OTP
+        console.log('Sending OTP to:', phone);
+        const response = await fetch('http://127.0.0.1:5000/send-otp', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ phone: phone }),
+        });
+
+        const data = await response.json();
+        console.log('OTP response:', data);
+
+        if (data.success) {
+          // OTP sent successfully, navigate to OTP screen
+          console.log('OTP sent successfully, navigating to OTP screen');
+          
+        // Show password reset OTP notification
+        if (data.dev_otp) {
+          alert(`🔧 DEV MODE: Your 4-digit password reset OTP is ${data.dev_otp}`);
+          console.log('🔧 DEV MODE - 4-digit Password Reset OTP:', data.dev_otp);
+        } else {
+          alert('📱 4-digit password reset OTP sent to your phone!');
+        }
+          
+          onNavigate('buyer-otp', { phone, isSignUp: true });
+        } else {
+          alert(data.error || 'Failed to send OTP. Please try again.');
+        }
+      } catch (error) {
+        console.error('Error in signup:', error);
+        console.error('Error details:', error);
+        alert(`Error creating account: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`);
+      } finally {
+        setIsLoading(false);
+      }
       return;
     }
 
-    // Login flow - check if user exists in localStorage (demo)
+    // Login flow - verify with Firebase
     try {
-      const existingUserRaw = localStorage.getItem('cc_buyer');
-      if (!existingUserRaw) {
-        alert('Account not found. Please sign up first.');
-        return;
-      }
-
-      const userData = JSON.parse(existingUserRaw);
-      // If you store multiple buyers, this simple demo assumes single buyer object.
-      // If you store an array, adapt this check accordingly.
-      if (userData.phone === phone && userData.password === password) {
-        // If you want to persist "logged in" state, you can set localStorage or app state here.
-        onNavigate('buyer-dashboard');
+      const user = await UserService.verifyLogin(phone, password, 'buyer');
+      if (user) {
+        if (user.isComplete) {
+          // User profile is complete, go to dashboard
+          onNavigate('buyer-dashboard');
+        } else {
+          // User exists but profile incomplete, go to setup
+          onNavigate('buyer-setup', { phone });
+        }
       } else {
-        alert('Invalid credentials');
+        alert('Invalid phone number or password. Please try again.');
       }
     } catch (err) {
-      console.error('Error reading user from storage', err);
-      alert('An error occurred. Please try again.');
+      console.error('Error during login:', err);
+      alert('Login failed. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!phone.trim()) {
+      alert('Please enter your phone number first.');
+      return;
+    }
+    
+    setIsLoading(true);
+    try {
+      const response = await fetch('http://127.0.0.1:5000/reset-password-otp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          phone: phone,
+          user_type: 'buyer'
+        }),
+      });
+
+      const data = await response.json();
+      console.log('Password reset OTP response:', data);
+
+        if (data.success) {
+          // Show OTP notification
+          if (data.dev_otp) {
+            alert(`🔧 DEV MODE: Your 4-digit OTP is ${data.dev_otp}`);
+            console.log('🔧 DEV MODE - 4-digit OTP:', data.dev_otp);
+          } else {
+            alert('📱 4-digit OTP sent to your phone!');
+          }
+        
+        setShowForgotPassword(true);
+        setResetStep('otp');
+      } else {
+        alert(data.error || 'Failed to send reset OTP.');
+      }
+    } catch (error: any) {
+      console.error('Error sending reset OTP:', error);
+      alert('Failed to send reset OTP. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!otp.trim() || !newPassword.trim()) {
+      alert('Please fill in all fields.');
+      return;
+    }
+    
+    if (newPassword.length < 6) {
+      alert('Password must be at least 6 characters long.');
+      return;
+    }
+    
+    setIsLoading(true);
+    try {
+      // First verify OTP with backend
+      const verifyResponse = await fetch('http://127.0.0.1:5000/reset-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          phone: phone,
+          otp: otp,
+          new_password: newPassword,
+          user_type: 'buyer'
+        }),
+      });
+
+      const verifyData = await verifyResponse.json();
+      console.log('Password reset verification response:', verifyData);
+
+      if (verifyData.success) {
+        // Update password in Firebase
+        await UserService.setUserPassword(phone, newPassword, 'buyer');
+        
+        alert('Password reset successful! You can now login with your new password.');
+        setShowForgotPassword(false);
+        setResetStep('phone');
+        setOtp('');
+        setNewPassword('');
+      } else {
+        alert(verifyData.error || 'Failed to verify OTP.');
+      }
+    } catch (error: any) {
+      console.error('Error resetting password:', error);
+      alert('Failed to reset password. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -58,41 +207,107 @@ const BuyerLogin: React.FC<BuyerLoginProps> = ({ onNavigate, onBack }) => {
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label className="block text-sm font-medium text-[#333] mb-2">
-              Phone Number
-            </label>
-            <input
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className="input-field"
-              placeholder="Enter your phone number"
-              required
-            />
-          </div>
-
-          {!isSignUp && (
+        {!showForgotPassword ? (
+          <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label className="block text-sm font-medium text-[#333] mb-2">
-                Password
+                Phone Number
               </label>
               <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
                 className="input-field"
-                placeholder="Enter your password"
+                placeholder="Enter your phone number"
                 required
               />
             </div>
-          )}
 
-          <button type="submit" className="btn-primary w-full">
-            {isSignUp ? 'Send OTP' : 'Login'}
-          </button>
-        </form>
+            {!isSignUp && (
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="block text-sm font-medium text-[#333]">
+                    Password
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleForgotPassword}
+                    className="text-sm text-[#154731] hover:underline"
+                    disabled={isLoading}
+                  >
+                    Forgot Password?
+                  </button>
+                </div>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="input-field"
+                  placeholder="Enter your password"
+                  required
+                />
+              </div>
+            )}
+
+            <button type="submit" className="btn-primary w-full" disabled={isLoading}>
+              {isLoading ? 'Please wait...' : (isSignUp ? 'Send OTP' : 'Login')}
+            </button>
+          </form>
+        ) : (
+          <div className="space-y-6">
+            <div className="text-center mb-4">
+              <h3 className="text-lg font-semibold text-[#154731]">Reset Password</h3>
+              <p className="text-sm text-[#666]">phone: {phone}</p>
+            </div>
+            
+            {resetStep === 'otp' && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-[#333] mb-2">
+                    Enter OTP
+                  </label>
+                  <input
+                    type="text"
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                    className="input-field text-center text-2xl tracking-widest"
+                    placeholder="1234"
+                    maxLength={4}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-[#333] mb-2">
+                    New Password
+                  </label>
+                  <input
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="input-field"
+                    placeholder="Enter new password (min 6 characters)"
+                    minLength={6}
+                    required
+                  />
+                </div>
+                <button
+                  onClick={handleResetPassword}
+                  className="btn-primary w-full"
+                  disabled={isLoading}
+                >
+                  {isLoading ? 'Resetting...' : 'Reset Password'}
+                </button>
+                <button
+                  onClick={() => setShowForgotPassword(false)}
+                  className="btn-secondary w-full"
+                  type="button"
+                >
+                  Cancel
+                </button>
+              </>
+            )}
+          </div>
+        )}
 
         <div className="mt-6 text-center">
           <button

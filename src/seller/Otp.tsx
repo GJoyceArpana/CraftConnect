@@ -12,6 +12,8 @@ type SellerOtpProps = {
 const SellerOtp: React.FC<SellerOtpProps> = ({ onNavigate, onBack, tempData }) => {
   const [otp, setOtp] = useState<string>('');
   const [timer, setTimer] = useState<number>(30);
+  const [isVerifying, setIsVerifying] = useState<boolean>(false);
+  const [isResending, setIsResending] = useState<boolean>(false);
 
   // countdown for resend button
   useEffect(() => {
@@ -22,18 +24,68 @@ const SellerOtp: React.FC<SellerOtpProps> = ({ onNavigate, onBack, tempData }) =
     return () => clearInterval(interval);
   }, []);
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    setIsVerifying(true);
 
-    // Mock OTP validation (replace with real backend in production)
-    if (otp === '1234' || otp.length === 4) {
-      if (tempData.isSignUp) {
-        onNavigate('seller-setpassword', tempData);
+    try {
+      const response = await fetch('http://127.0.0.1:5000/verify-otp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          phone: tempData.phone, 
+          otp 
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // OTP verified successfully
+        if (tempData.isSignUp) {
+          onNavigate('seller-setpassword', tempData);
+        } else {
+          onNavigate('seller-dashboard');
+        }
       } else {
-        onNavigate('seller-dashboard');
+        alert(data.error || 'Invalid OTP. Please try again.');
       }
-    } else {
-      alert('Invalid OTP. Use 1234 for demo.');
+    } catch (error) {
+      console.error('Error verifying OTP:', error);
+      alert('Network error. Please check your connection and try again.');
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+  const handleResend = async () => {
+    if (isResending) return;
+    setIsResending(true);
+    
+    try {
+      const response = await fetch('http://127.0.0.1:5000/send-otp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ phone: tempData.phone }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setTimer(30);
+        alert(`OTP resent to ${tempData.phone}`);
+      } else {
+        alert(data.error || 'Failed to resend OTP. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error resending OTP:', error);
+      alert('Network error. Please check your connection and try again.');
+    } finally {
+      setIsResending(false);
     }
   };
 
@@ -45,7 +97,6 @@ const SellerOtp: React.FC<SellerOtpProps> = ({ onNavigate, onBack, tempData }) =
           <p className="text-[#666] mb-4">
             We've sent an OTP to <strong>{tempData.phone}</strong>
           </p>
-          <p className="text-sm text-[#d67a4a] font-medium">Demo OTP: 1234</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -62,8 +113,8 @@ const SellerOtp: React.FC<SellerOtpProps> = ({ onNavigate, onBack, tempData }) =
             />
           </div>
 
-          <button type="submit" className="btn-primary w-full">
-            Verify OTP
+          <button type="submit" className="btn-primary w-full" disabled={isVerifying}>
+            {isVerifying ? 'Verifying...' : 'Verify OTP'}
           </button>
         </form>
 
@@ -74,9 +125,10 @@ const SellerOtp: React.FC<SellerOtpProps> = ({ onNavigate, onBack, tempData }) =
             <button
               type="button"
               className="text-[#d67a4a] font-medium hover:underline"
-              onClick={() => setTimer(30)} // restart timer on resend
+              onClick={handleResend}
+              disabled={isResending}
             >
-              Resend OTP
+              {isResending ? 'Resending...' : 'Resend OTP'}
             </button>
           )}
         </div>
