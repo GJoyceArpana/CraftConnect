@@ -24,6 +24,8 @@ import SellerSetupProfile from './seller/SetupProfile';
 import SellerDashboard from './seller/SellerDashboard';
 import CreateProduct from './seller/CreateProduct';
 import { Products } from './components/Products';
+import { ProfileDebug } from './components/ProfileDebug';
+import { QuickLogin } from './components/QuickLogin';
 
 import './buyer.css';
 import './home-hero.css';
@@ -210,6 +212,10 @@ function App() {
         return <CreateProduct user={currentUser} onNavigate={navigateTo} onBack={navigateBack} />;
       case 'products':
         return <Products onNavigate={navigateTo} />;
+      case 'debug':
+        return <ProfileDebug />;
+      case 'quick-login':
+        return <QuickLogin onNavigate={navigateTo} />;
 
       default:
         return <Home onNavigate={navigateTo} />;
