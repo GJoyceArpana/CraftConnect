@@ -1,11 +1,12 @@
 // src/App.tsx
 import { useState, useEffect } from 'react';
 import Home from './Home';
-import { UserService } from './firebase/mockService';
+import { UserService } from './firebase/userService';
 import './firebase/adminUtils'; // Make AdminUtils available in console
 import './resetAccount'; // Make reset function available
 import './firebase/passwordReset'; // Make PasswordResetService available
 import './firebase/testConnection'; // Make Firebase test available
+import './firebase/test'; // Make Firebase connection test available
 
 // Buyer components
 import BuyerLogin from './buyer/Login';
