@@ -1,12 +1,26 @@
+/* src/index.css */
+
+/* Tailwind layers (must be first) */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* Global font */
 * {
   font-family: 'Poppins', sans-serif;
 }
 
+/* Body defaults */
 body {
-  background-color: #fdfaf6;
-  color: #333;
+  /* Use Tailwind utilities via @apply for consistency */
+  @apply bg-[#fdfaf6] text-[#333];
+  margin: 0;
+  padding: 0;
+  line-height: 1.5;
+}
+
+/* Optional: smoother font rendering */
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }

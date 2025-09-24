@@ -1,4 +1,5 @@
 // src/CreateProduct.tsx
+// src/CreateProduct.tsx
 import React, { useState, ChangeEvent, FormEvent } from 'react';
 
 type User = {
@@ -16,11 +17,11 @@ type CreateProductProps = {
 type FormState = {
   name: string;
   description: string;
-  price: string; // keep as string for controlled input, convert on submit
+  price: string; // final price (user editable)
   category: string;
   material: string;
-  weight: string; // kg as string from input
-  process: string;
+  weight: string; // kept for backward compatibility if needed
+  process: string; // kept for backward compatibility if needed
   productImage?: string | null;
 };
 
@@ -30,36 +31,6 @@ const categories = [
   { id: 'textiles', name: 'Textiles' },
   { id: 'bamboo', name: 'Bamboo & Wood' }
 ];
-
-/**
- * Calculate CO2 impact and return a number (kg) with 1 decimal precision.
- * Returns a Number (not string) to avoid type mismatches.
- */
-const calculateCO2Impact = (material: string, weightStr: string, process: string): number => {
-  const baseCO2 = parseFloat(weightStr) || 1;
-  const materialMultiplier: Record<string, number> = {
-    clay: 0.8,
-    jute: 1.2,
-    cotton: 0.9,
-    bamboo: 1.5,
-    wood: 1.3
-  };
-  const processMultiplier: Record<string, number> = {
-    handmade: 2.0,
-    traditional: 1.8,
-    sustainable: 2.2
-  };
-
-  const materialKey = (material || '').toLowerCase();
-  const processKey = (process || '').toLowerCase();
-
-  const materialFactor = materialMultiplier[materialKey] ?? 1.0;
-  const processFactor = processMultiplier[processKey] ?? 1.0;
-
-  const raw = baseCO2 * materialFactor * processFactor;
-  // round to 1 decimal and return number
-  return Math.round(raw * 10) / 10;
-};
 
 const CreateProduct: React.FC<CreateProductProps> = ({ user, onNavigate, onBack }) => {
   const [formData, setFormData] = useState<FormState>({
@@ -73,34 +44,31 @@ const CreateProduct: React.FC<CreateProductProps> = ({ user, onNavigate, onBack 
     productImage: null
   });
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [co2Prediction, setCo2Prediction] = useState<number>(0);
 
+  // Estimate-specific state (separate box)
+  const [estCategory, setEstCategory] = useState<string>(''); // selected category for estimate
+  const [estMaterial, setEstMaterial] = useState<string>(''); // material input for estimate
+  const [estHours, setEstHours] = useState<string>(''); // hours of work as string (controlled input)
+  const [estBasePrice, setEstBasePrice] = useState<string>(''); // base price input for estimate
+
+  const [estimatedPrice, setEstimatedPrice] = useState<number | null>(null);
+  const [estimating, setEstimating] = useState<boolean>(false);
+  const [estimateError, setEstimateError] = useState<string | null>(null);
+
+  // Replace with your backend endpoint
+  const ESTIMATE_API = '/api/estimate-price';
+
+  // Generic form input handler for main product form
   const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    // update form data first
-    setFormData(prev => {
-      const updated = { ...prev, [name]: value };
-
-      // calculate CO2 prediction when relevant fields change
-      if (name === 'material' || name === 'weight' || name === 'process') {
-        const material = name === 'material' ? value : updated.material;
-        const weight = name === 'weight' ? value : updated.weight;
-        const process = name === 'process' ? value : updated.process;
-
-        const prediction = calculateCO2Impact(material, weight, process);
-        // set numeric prediction
-        setCo2Prediction(prediction);
-      }
-
-      return updated;
-    });
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  // Image upload (unchanged)
   const handleImageUpload = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // 2MB limit
     if (file.size > 2 * 1024 * 1024) {
       alert('File size must be less than 2MB');
       return;
@@ -120,10 +88,85 @@ const CreateProduct: React.FC<CreateProductProps> = ({ user, onNavigate, onBack 
     reader.readAsDataURL(file);
   };
 
+  // Fetch estimate from backend
+  const fetchEstimatedPrice = async () => {
+    // Validate estimate inputs first
+    if (!estCategory) {
+      setEstimateError('Please select a category for estimate.');
+      setEstimatedPrice(null);
+      return;
+    }
+    if (!estMaterial.trim()) {
+      setEstimateError('Please enter material for estimate.');
+      setEstimatedPrice(null);
+      return;
+    }
+    const hoursNum = parseFloat(estHours);
+    if (isNaN(hoursNum) || hoursNum <= 0) {
+      setEstimateError('Please enter valid hours of work (> 0).');
+      setEstimatedPrice(null);
+      return;
+    }
+    const baseNum = parseFloat(estBasePrice);
+    if (isNaN(baseNum) || baseNum < 0) {
+      setEstimateError('Please enter a valid base price (>= 0).');
+      setEstimatedPrice(null);
+      return;
+    }
+
+    setEstimating(true);
+    setEstimateError(null);
+    setEstimatedPrice(null);
+
+    try {
+      const payload = {
+        category: estCategory,
+        material: estMaterial,
+        hours: hoursNum,
+        basePrice: baseNum
+      };
+
+      const res = await fetch(ESTIMATE_API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || `Estimate service returned ${res.status}`);
+      }
+
+      const data = await res.json();
+      // Expecting { estimatedPrice: number } from backend
+      if (data && (typeof data.estimatedPrice === 'number' || typeof data.estimatedPrice === 'string')) {
+        const val = typeof data.estimatedPrice === 'number' ? data.estimatedPrice : parseFloat(data.estimatedPrice);
+        if (!isNaN(val)) {
+          setEstimatedPrice(Math.round(val * 100) / 100);
+        } else {
+          throw new Error('Invalid estimate value');
+        }
+      } else {
+        throw new Error('Invalid response from estimate service');
+      }
+    } catch (err: any) {
+      console.error('Estimate fetch failed', err);
+      setEstimateError(err?.message || 'Failed to fetch estimate');
+    } finally {
+      setEstimating(false);
+    }
+  };
+
+  // Use estimate as the final product price (copies into form)
+  const applyEstimateAsPrice = () => {
+    if (estimatedPrice === null) return;
+    setFormData(prev => ({ ...prev, price: String(estimatedPrice) }));
+  };
+
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
 
-    // basic validation
+    // basic product validations
     if (!formData.name.trim()) {
       alert('Please enter product name');
       return;
@@ -138,12 +181,7 @@ const CreateProduct: React.FC<CreateProductProps> = ({ user, onNavigate, onBack 
     }
     const priceNum = parseFloat(formData.price);
     if (isNaN(priceNum) || priceNum <= 0) {
-      alert('Please enter a valid price');
-      return;
-    }
-    const weightNum = parseFloat(formData.weight);
-    if (isNaN(weightNum) || weightNum <= 0) {
-      alert('Please enter a valid weight');
+      alert('Please enter a valid final price');
       return;
     }
 
@@ -154,7 +192,6 @@ const CreateProduct: React.FC<CreateProductProps> = ({ user, onNavigate, onBack 
       sellerId: user?.id ?? null,
       sellerName: user?.name ?? 'Unknown Seller',
       price: priceNum,
-      co2Prediction: co2Prediction || calculateCO2Impact(formData.material, formData.weight, formData.process),
       createdAt: new Date().toISOString(),
       image: formData.productImage ?? 'https://images.pexels.com/photos/6474306/pexels-photo-6474306.jpeg?auto=compress&cs=tinysrgb&w=400'
     };
@@ -165,7 +202,6 @@ const CreateProduct: React.FC<CreateProductProps> = ({ user, onNavigate, onBack 
       const existingProducts = Array.isArray(JSON.parse(raw)) ? (JSON.parse(raw) as any[]) : [];
       localStorage.setItem('cc_seller_products', JSON.stringify([...existingProducts, productData]));
     } catch (err) {
-      // if parse fails, overwrite with new array
       try {
         localStorage.setItem('cc_seller_products', JSON.stringify([productData]));
       } catch {
@@ -241,7 +277,7 @@ const CreateProduct: React.FC<CreateProductProps> = ({ user, onNavigate, onBack 
                     type="text"
                     name="name"
                     value={formData.name}
-                    onChange={handleInputChange}
+                    onChange={(e) => handleInputChange(e)}
                     className="input-field"
                     placeholder="Enter product name"
                     required
@@ -253,7 +289,7 @@ const CreateProduct: React.FC<CreateProductProps> = ({ user, onNavigate, onBack 
                   <textarea
                     name="description"
                     value={formData.description}
-                    onChange={handleInputChange}
+                    onChange={(e) => handleInputChange(e)}
                     className="input-field h-24 resize-none"
                     placeholder="Describe your product's features, craftsmanship, and uniqueness"
                     required
@@ -265,7 +301,7 @@ const CreateProduct: React.FC<CreateProductProps> = ({ user, onNavigate, onBack 
                   <select
                     name="category"
                     value={formData.category}
-                    onChange={handleInputChange}
+                    onChange={(e) => handleInputChange(e)}
                     className="input-field"
                     required
                   >
@@ -279,15 +315,15 @@ const CreateProduct: React.FC<CreateProductProps> = ({ user, onNavigate, onBack 
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-[#333] mb-2">Price (₹) *</label>
+                  <label className="block text-sm font-medium text-[#333] mb-2">Final Price (₹) *</label>
                   <input
                     type="number"
                     name="price"
                     value={formData.price}
-                    onChange={handleInputChange}
+                    onChange={(e) => handleInputChange(e)}
                     className="input-field"
-                    placeholder="Enter price"
-                    min="1"
+                    placeholder="Enter final price"
+                    min="0.01"
                     step="0.01"
                     required
                   />
@@ -295,11 +331,11 @@ const CreateProduct: React.FC<CreateProductProps> = ({ user, onNavigate, onBack 
               </div>
             </div>
 
-            {/* Sustainability Information */}
+            {/* Sustainability Information (kept fields but not auto-calculated) */}
             <div>
               <h3 className="text-lg font-semibold text-[#333] mb-4">
-                Sustainability Details
-                <span className="text-sm font-normal text-[#666] ml-2">(for CO₂ calculation)</span>
+                Product Details
+                <span className="text-sm font-normal text-[#666] ml-2">(used for estimate & listing)</span>
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
@@ -308,7 +344,7 @@ const CreateProduct: React.FC<CreateProductProps> = ({ user, onNavigate, onBack 
                     type="text"
                     name="material"
                     value={formData.material}
-                    onChange={handleInputChange}
+                    onChange={(e) => handleInputChange(e)}
                     className="input-field"
                     placeholder="e.g., Clay, Jute, Cotton"
                     required
@@ -316,48 +352,31 @@ const CreateProduct: React.FC<CreateProductProps> = ({ user, onNavigate, onBack 
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-[#333] mb-2">Weight (kg) *</label>
+                  <label className="block text-sm font-medium text-[#333] mb-2">Weight (kg)</label>
                   <input
                     type="number"
                     name="weight"
                     value={formData.weight}
-                    onChange={handleInputChange}
+                    onChange={(e) => handleInputChange(e)}
                     className="input-field"
-                    placeholder="Product weight"
+                    placeholder="Product weight (optional)"
                     step="0.1"
-                    min="0.1"
-                    required
+                    min="0"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-[#333] mb-2">Process *</label>
+                  <label className="block text-sm font-medium text-[#333] mb-2">Process</label>
                   <input
                     type="text"
                     name="process"
                     value={formData.process}
-                    onChange={handleInputChange}
+                    onChange={(e) => handleInputChange(e)}
                     className="input-field"
-                    placeholder="e.g., Handmade, Traditional"
-                    required
+                    placeholder="e.g., Handmade, Traditional (optional)"
                   />
                 </div>
               </div>
-
-              {/* CO2 Prediction Display */}
-              {co2Prediction > 0 && (
-                <div className="mt-6 p-4 bg-green-50 rounded-lg border border-green-200">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="font-semibold text-green-800 mb-1">🌱 Environmental Impact Prediction</h4>
-                      <p className="text-sm text-green-600">
-                        This product will help buyers save approximately <strong>{co2Prediction}kg of CO₂</strong> compared to mass-produced alternatives.
-                      </p>
-                    </div>
-                    <div className="text-3xl font-bold text-green-700">{co2Prediction}kg</div>
-                  </div>
-                </div>
-              )}
             </div>
 
             <div className="flex gap-4">
@@ -377,6 +396,108 @@ const CreateProduct: React.FC<CreateProductProps> = ({ user, onNavigate, onBack 
             </div>
           </form>
         </div>
+
+        {/* ---------- Estimate Panel (separate box) ---------- */}
+        <div className="mt-6">
+          <div className="dashboard-card">
+            <h3 className="text-lg font-semibold text-[#333] mb-4">Get Estimated Price </h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="block text-sm font-medium text-[#333] mb-2">Category</label>
+                <select
+                  value={estCategory}
+                  onChange={(e) => setEstCategory(e.target.value)}
+                  className="input-field"
+                >
+                  <option value="">Select category</option>
+                  {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-[#333] mb-2">Material</label>
+                <input
+                  type="text"
+                  value={estMaterial}
+                  onChange={(e) => setEstMaterial(e.target.value)}
+                  className="input-field"
+                  placeholder="e.g., Clay, Jute, Cotton"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-[#333] mb-2">Hours of Work</label>
+                <input
+                  type="number"
+                  value={estHours}
+                  onChange={(e) => setEstHours(e.target.value)}
+                  className="input-field"
+                  placeholder="Enter hours"
+                  step="0.1"
+                  min="0"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-[#333] mb-2">Base Price (₹)</label>
+                <input
+                  type="number"
+                  value={estBasePrice}
+                  onChange={(e) => setEstBasePrice(e.target.value)}
+                  className="input-field"
+                  placeholder="Base cost / material cost"
+                  step="0.01"
+                  min="0"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-start md:items-center gap-4">
+              <div className="flex-1">
+                <div className="p-4 rounded-lg border border-gray-200 bg-white">
+                  {estimating ? (
+                    <div className="text-sm text-[#666]">Calculating estimate... ⏳</div>
+                  ) : estimateError ? (
+                    <div className="text-sm text-red-600">Error: {estimateError}</div>
+                  ) : estimatedPrice !== null ? (
+                    <div className="flex items-baseline gap-3">
+                      <div className="text-3xl font-bold text-[#154731]">₹{estimatedPrice}</div>
+                      <div className="text-sm text-[#666]">Estimated price</div>
+                    </div>
+                  ) : (
+                    <div className="text-sm text-[#666]">Fill category, material, hours and base price, then click Get Estimate.</div>
+                  )}
+                </div>
+              </div>
+
+              <div className="w-full md:w-auto flex flex-col gap-3">
+                <button
+                  type="button"
+                  onClick={fetchEstimatedPrice}
+                  className="hero-button w-full md:w-auto"
+                  disabled={estimating}
+                >
+                  {estimating ? 'Estimating...' : 'Get Estimate'}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={applyEstimateAsPrice}
+                  className="btn-secondary w-full md:w-auto"
+                  disabled={estimatedPrice === null}
+                >
+                  Use estimate as final price
+                </button>
+
+                <div className="mt-2 text-sm text-[#666]">
+                  Current final price: {formData.price ? `₹${formData.price}` : 'Not set'}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        {/* ---------- End Estimate Panel ---------- */}
       </div>
     </div>
   );
