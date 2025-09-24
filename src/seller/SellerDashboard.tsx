@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import SustainabilityChatbot from '../components/SustainabilityChatbot';
 import { apiService } from '../services/api';
-import { firebaseApi, DashboardData } from '../services/firebaseApi';
+import { firebaseApi, DashboardData, Product as ApiProduct } from '../services/firebaseApi'; // Updated imports
 
 type User = {
   id?: string | number;
@@ -527,10 +527,36 @@ const ProfileModal: React.FC<{
     address: user?.address || ''
   });
 
-  const handleSave = () => {
+  const handleSave = async () => {
     try {
+      // Save to localStorage
       localStorage.setItem('cc_seller', JSON.stringify(form));
-    } catch {}
+      
+      // Update in Firebase via API call
+      if (user?.id) {
+        const result = await firebaseApi.createUser({
+          user_id: user.id.toString(),
+          name: form.name,
+          email: form.email || '',
+          phone: form.phone || '',
+          business_name: form.businessName || '',
+          address: form.address || '',
+          profile_image: form.profileImage || '',
+          role: 'seller',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        });
+        
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to update profile');
+        }
+      }
+    } catch (error) {
+      console.error('Error saving seller profile:', error);
+      alert('Failed to save profile to database. Please try again.');
+      return;
+    }
+    
     setUser(form);
     setEditing(false);
   };
@@ -611,29 +637,31 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user: initialUser, on
       setLoading(true);
       
       try {
-        // Load products from API (Firebase/Local Storage)
+        // Load products from Firebase API
         const sellerId = String(user.id);
         const apiProducts = await firebaseApi.getSellerProducts(sellerId);
         
-        // Also load from localStorage as fallback/supplement
-        const localProducts: Product[] = JSON.parse(localStorage.getItem('cc_seller_products') || '[]')
-          .filter((product: any) => String(product.sellerId) === sellerId);
+        // Convert API products to local format
+        const convertedProducts: Product[] = apiProducts.map(apiProduct => ({
+          id: parseInt(apiProduct.id) || Date.now(),
+          name: apiProduct.name,
+          description: apiProduct.description,
+          price: apiProduct.price,
+          image: apiProduct.image,
+          sellerId: apiProduct.seller_id,
+          co2Prediction: apiProduct.co2_saving_kg || apiProduct.co2_prediction || 0
+        }));
         
-        // Combine API and local products, preferring API data
-        const allProducts = [...apiProducts, ...localProducts.filter(local => 
-          !apiProducts.find(api => api.id === local.id)
-        )];
-        
-        setProducts(allProducts as Product[]);
+        setProducts(convertedProducts);
         
         // Load dashboard metrics
         const dashboardMetrics = await firebaseApi.getSellerDashboardData(sellerId);
         setDashboardData(dashboardMetrics);
         
       } catch (error) {
-        console.error('Error loading seller data:', error);
+        console.error('Error loading seller data from API:', error);
         
-        // Fallback to localStorage only
+        // Fallback to localStorage
         try {
           const sellerProducts: Product[] = JSON.parse(localStorage.getItem('cc_seller_products') || '[]');
           setProducts(sellerProducts.filter(product => String(product.sellerId) === String(user.id)));
@@ -775,53 +803,7 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user: initialUser, on
               </div>
             </div>
 
-            {/* Environmental Impact Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="summary-card" style={{background: 'linear-gradient(135deg, #10b981, #059669)'}}>
-                {loading ? (
-                  <div className="animate-pulse">
-                    <div className="h-8 bg-white/20 rounded mb-2"></div>
-                    <div className="h-4 bg-white/20 rounded mb-1"></div>
-                  </div>
-                ) : (
-                  <>
-                    <div className="text-3xl font-bold mb-2">{totalCO2Saved.toFixed(1)} kg</div>
-                    <div className="text-white/90">Total CO₂ Saved</div>
-                    <div className="text-xs text-white/70 mt-1">🌱 Equivalent to planting {Math.ceil(totalCO2Saved / 6.25)} trees</div>
-                  </>
-                )}
-              </div>
 
-              <div className="summary-card secondary">
-                {loading ? (
-                  <div className="animate-pulse">
-                    <div className="h-8 bg-white/20 rounded mb-2"></div>
-                    <div className="h-4 bg-white/20 rounded mb-1"></div>
-                  </div>
-                ) : (
-                  <>
-                    <div className="text-3xl font-bold mb-2">{dashboardData?.orders_placed ?? totalSold}</div>
-                    <div className="text-white/90">Orders Placed</div>
-                    <div className="text-xs text-white/70 mt-1">📦 All delivered successfully</div>
-                  </>
-                )}
-              </div>
-
-              <div className="summary-card tertiary">
-                {loading ? (
-                  <div className="animate-pulse">
-                    <div className="h-8 bg-white/20 rounded mb-2"></div>
-                    <div className="h-4 bg-white/20 rounded mb-1"></div>
-                  </div>
-                ) : (
-                  <>
-                    <div className="text-3xl font-bold mb-2">₹{(dashboardData?.amount_saved ?? totalRevenue * 0.15).toFixed(0)}</div>
-                    <div className="text-white/90">Amount Saved</div>
-                    <div className="text-xs text-white/70 mt-1">💰 vs. mass market products</div>
-                  </>
-                )}
-              </div>
-            </div>
 
             {/* Create Product Button */}
             <div className="dashboard-card">

@@ -1,1 +1,20 @@
-{}
+{
+  "1758738252686": {
+    "name": "Gerard Joyce Arpana",
+    "email": "",
+    "phone": "9980063743",
+    "user_type": "buyer",
+    "profile_complete": false,
+    "created_at": "2025-09-24T23:54:12.710705",
+    "updated_at": "2025-09-24T23:54:12.710717"
+  },
+  "1758738348213": {
+    "name": "Gerard Joyce Arpana",
+    "email": "",
+    "phone": "9980063743",
+    "user_type": "buyer",
+    "profile_complete": false,
+    "created_at": "2025-09-24T23:55:48.258036",
+    "updated_at": "2025-09-24T23:55:48.258050"
+  }
+}

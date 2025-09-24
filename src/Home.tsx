@@ -1,7 +1,7 @@
 // src/Home.tsx
 import type { FC } from 'react';
 import { useState, useEffect } from 'react';
-import OtpDiagnostic from './components/OtpDiagnostic';
+
 import './home-hero.css';
 
 // Lazy load images to reduce initial bundle size
@@ -42,7 +42,6 @@ const Home: FC<HomeProps> = ({ onNavigate }) => {
   return (
     <div className="hero-bg min-h-screen flex flex-col items-center justify-center px-4 jute-pattern">
       {/* OTP Diagnostic Tool - Only in development */}
-      {process.env.NODE_ENV === 'development' && <OtpDiagnostic />}
       {/* Floating decoration cards (kept from your original design) */}
       <div className="floating-card top-20 left-10 bg-white/10 backdrop-blur-sm rounded-lg p-4 hidden lg:block">
         <div className="text-2xl">🌱</div>

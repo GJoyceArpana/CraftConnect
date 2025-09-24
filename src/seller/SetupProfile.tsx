@@ -1,5 +1,6 @@
 // src/SellerSetupProfile.tsx
 import React, { useState, ChangeEvent, FormEvent } from 'react';
+import { firebaseApi } from '../services/firebaseApi'; // Added import for firebaseApi
 
 type TempData = {
   phone?: string;
@@ -70,7 +71,7 @@ const SellerSetupProfile: React.FC<SellerSetupProfileProps> = ({
     reader.readAsDataURL(file);
   };
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
     // Merge setup data
@@ -83,9 +84,34 @@ const SellerSetupProfile: React.FC<SellerSetupProfileProps> = ({
     };
 
     try {
+      // Save to localStorage
       localStorage.setItem('cc_seller', JSON.stringify(userData));
+      
+      // Save to Firebase
+      const result = await firebaseApi.createUser({
+        user_id: userData.id,
+        name: userData.name,
+        email: userData.email || '',
+        phone: userData.phone || '',
+        business_name: userData.businessName,
+        address: userData.address,
+        city: userData.city,
+        state: userData.state,
+        pincode: userData.pincode,
+        profile_image: userData.profileImage || '',
+        role: 'seller',
+        is_complete: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      });
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to create user profile');
+      }
+      
     } catch (err) {
-      console.error('Error saving seller to localStorage', err);
+      console.error('Error saving seller profile:', err);
+      alert('Error saving profile to database. Using local storage only.');
     }
 
     onUpdateUser(userData);

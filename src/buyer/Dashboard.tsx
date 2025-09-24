@@ -1,6 +1,7 @@
 // src/BuyerDashboard.tsx
 import { useState } from 'react';
 import type { FC } from 'react';
+
 import CarbonFootprintBadge, { CarbonFootprintCard } from '../components/CarbonFootprintBadge';
 import SustainabilityChatbot from '../components/SustainabilityChatbot';
 import { apiService } from '../services/api';

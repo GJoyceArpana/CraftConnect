@@ -1,6 +1,7 @@
 // src/SellerLogin.tsx
 import React, { useState, FormEvent } from 'react';
 import { UserService } from '../firebase/userService';
+import { firebaseApi } from '../services/firebaseApi'; // Added import for firebaseApi
 
 type NavigateFn = (path: string, payload?: any) => void;
 
@@ -33,8 +34,16 @@ const SellerLogin: React.FC<SellerLoginProps> = ({ onNavigate, onBack }) => {
           return;
         }
 
-        // Create initial seller record
-        await UserService.createSeller({ phone, isComplete: false });
+        // Create initial seller record in Firebase
+        const createResult = await firebaseApi.createUser({
+          phone: phone,
+          role: 'seller',
+          is_complete: false
+        });
+
+        if (!createResult.success) {
+          throw new Error(createResult.error || 'Failed to create user record');
+        }
 
         // Send OTP with enhanced error handling
         const normalizedPhone = phone.replace(/\D/g, ''); // Remove all non-digits

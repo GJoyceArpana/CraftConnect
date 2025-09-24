@@ -310,18 +310,26 @@ class FirebaseService:
             }
 
     def get_buyer_dashboard_data(self, buyer_id: str) -> Dict:
-        """Get real-time buyer dashboard data"""
+        """Get real-time buyer dashboard data with dynamic calculations"""
         try:
             # Get buyer stats
             stats_ref = self.db.collection('buyer_stats').document(buyer_id)
             stats_doc = stats_ref.get()
             stats = stats_doc.to_dict() if stats_doc.exists else {}
             
+            # Get all orders for this buyer to calculate dynamic values
+            orders = self.get_orders({'buyer_id': buyer_id}, limit=1000)  # Get all orders
+            
+            # Calculate totals from orders
+            total_orders = len(orders)
+            total_amount_saved = sum(order.get('amount_saved', 0) for order in orders)
+            total_co2_saved = sum(order.get('co2_saved', 0) for order in orders)  # Assuming co2_saved is stored in orders
+            
             dashboard_data = {
-                'orders_placed': stats.get('orders_placed', 0),
-                'amount_saved': stats.get('amount_saved', 0),
+                'orders_placed': total_orders,
+                'amount_saved': total_amount_saved,
                 'products_liked': stats.get('products_liked', 0),
-                'co2_impact_reduced': stats.get('co2_impact_reduced', 0)
+                'co2_impact_reduced': total_co2_saved
             }
             
             return dashboard_data

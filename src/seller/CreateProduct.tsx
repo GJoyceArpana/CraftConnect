@@ -1,7 +1,7 @@
 // src/CreateProduct.tsx
-// src/CreateProduct.tsx
 import React, { useState, ChangeEvent, FormEvent } from 'react';
 import PriceSuggestions from '../components/PriceSuggestions';
+import { firebaseApi } from '../services/firebaseApi'; // Added import for firebaseApi
 
 type User = {
   id?: string | number;
@@ -328,50 +328,48 @@ const CreateProduct: React.FC<CreateProductProps> = ({ user, onNavigate, onBack 
 
     // Build product object
     const productData = {
-      ...formData,
-      id: Date.now().toString(),
-      sellerId: user?.id ?? null,
-      sellerName: user?.name ?? 'Unknown Seller',
+      name: formData.name.trim(),
+      description: formData.description.trim(),
       price: priceNum,
-      weight: parseFloat(formData.weight), // convert to number
-      packagingWeight: parseFloat(formData.packagingWeight),
-      distanceToMarket: parseFloat(formData.distanceToMarket),
-      recycledMaterial: parseFloat(formData.recycledMaterial),
-      ...finalCarbonData,
-      createdAt: new Date().toISOString(),
-      image: formData.productImage ?? 'https://images.pexels.com/photos/6474306/pexels-photo-6474306.jpeg?auto=compress&cs=tinysrgb&w=400'
+      category: formData.category,
+      material: formData.material,
+      weight: parseFloat(formData.weight) || 0,
+      process: formData.process,
+      seller_id: user?.id?.toString() || 'unknown',
+      seller_name: user?.name || 'Unknown Seller',
+      image: formData.productImage || 'https://images.pexels.com/photos/6474306/pexels-photo-6474306.jpeg?auto=compress&cs=tinysrgb&w=400',
+      packaging_weight: parseFloat(formData.packagingWeight) || 0,
+      distance_to_market: parseFloat(formData.distanceToMarket) || 0,
+      recycled_material: parseFloat(formData.recycledMaterial) || 0,
+      co2_prediction: finalCarbonData.co2Prediction,
+      sustainability_score: finalCarbonData.sustainabilityScore,
+      co2_saving_kg: finalCarbonData.co2SavingKg,
+      waste_reduction_pct: finalCarbonData.wasteReductionPct,
+      status: 'active',
+      created_at: new Date().toISOString(),
+      views: 0,
+      likes: 0
     };
 
     // Save to Firebase via backend API
     try {
-      const response = await fetch('http://127.0.0.1:5000/api/products', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(productData),
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success) {
-          // Also save to localStorage for offline access
-          try {
-            const raw = localStorage.getItem('cc_seller_products') || '[]';
-            const existingProducts = Array.isArray(JSON.parse(raw)) ? (JSON.parse(raw) as any[]) : [];
-            localStorage.setItem('cc_seller_products', JSON.stringify([...existingProducts, { ...productData, id: result.product_id }]));
-          } catch (err) {
-            console.warn('Failed to save to localStorage, but product saved to database:', err);
-          }
-          
-          alert('Product created successfully! 🎉\nNow available on the marketplace!');
-          onNavigate('seller-dashboard');
-        } else {
-          throw new Error(result.message || 'Failed to create product');
+      const result = await firebaseApi.createProduct(productData);
+      
+      if (result.success) {
+        // Also save to localStorage for offline access
+        try {
+          const raw = localStorage.getItem('cc_seller_products') || '[]';
+          const existingProducts = Array.isArray(JSON.parse(raw)) ? (JSON.parse(raw) as any[]) : [];
+          const productWithId = { ...productData, id: result.product_id };
+          localStorage.setItem('cc_seller_products', JSON.stringify([...existingProducts, productWithId]));
+        } catch (err) {
+          console.warn('Failed to save to localStorage, but product saved to database:', err);
         }
+        
+        alert('Product created successfully! 🎉\nNow available on the marketplace!');
+        onNavigate('seller-dashboard');
       } else {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        throw new Error(errorData.error || 'Failed to create product');
+        throw new Error(result.error || 'Failed to create product');
       }
     } catch (err: any) {
       console.error('Failed to save product to database:', err);
@@ -380,7 +378,8 @@ const CreateProduct: React.FC<CreateProductProps> = ({ user, onNavigate, onBack 
       try {
         const raw = localStorage.getItem('cc_seller_products') || '[]';
         const existingProducts = Array.isArray(JSON.parse(raw)) ? (JSON.parse(raw) as any[]) : [];
-        localStorage.setItem('cc_seller_products', JSON.stringify([...existingProducts, productData]));
+        const productWithId = { ...productData, id: Date.now().toString() };
+        localStorage.setItem('cc_seller_products', JSON.stringify([...existingProducts, productWithId]));
         alert('Product saved locally! ⚠️\nPlease check your internet connection.\nProduct will sync when connection is restored.');
         onNavigate('seller-dashboard');
       } catch (localErr) {

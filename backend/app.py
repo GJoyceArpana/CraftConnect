@@ -231,21 +231,21 @@ def send_otp():
             'attempts': 0
         }
         
-        # Use Twilio Verify API but store our 4-digit OTP for verification
+        # Use Twilio Verify API but store our 6-digit OTP for verification
         if twilio_client and TWILIO_VERIFY_SID:
             try:
                 # Send via Twilio Verify (which will be 6-digit by default)
-                # But we'll verify using our stored 4-digit OTP
+                # But we'll verify using our stored 6-digit OTP
                 verification = twilio_client.verify.v2.services(TWILIO_VERIFY_SID).verifications.create(
                     to=formatted_phone,
                     channel='sms'
                 )
                 
-                print(f"4-digit OTP sent via Twilio to {formatted_phone}: {otp}")
-                
+                print(f"6-digit OTP sent via Twilio to {formatted_phone}: {otp}")
+
                 response_data = {
                     "success": True,
-                    "message": f"4-digit OTP sent to {formatted_phone}",
+                    "message": f"6-digit OTP sent to {formatted_phone}",
                     "expires_in": 300  # 5 minutes
                 }
                 
@@ -333,21 +333,21 @@ def send_reset_password_otp():
             'user_type': user_type
         }
         
-        # Use Twilio Verify API but store our 4-digit OTP for verification
+        # Use Twilio Verify API but store our 6-digit OTP for verification
         if twilio_client and TWILIO_VERIFY_SID:
             try:
                 # Send via Twilio Verify (which will be 6-digit by default)
-                # But we'll verify using our stored 4-digit OTP
+                # But we'll verify using our stored 6-digit OTP
                 verification = twilio_client.verify.v2.services(TWILIO_VERIFY_SID).verifications.create(
                     to=formatted_phone,
                     channel='sms'
                 )
                 
-                print(f"4-digit password reset OTP sent via Twilio to {formatted_phone}: {otp}")
-                
+                print(f"6-digit password reset OTP sent via Twilio to {formatted_phone}: {otp}")
+
                 response_data = {
                     "success": True,
-                    "message": f"4-digit password reset OTP sent to {formatted_phone}",
+                    "message": f"6-digit password reset OTP sent to {formatted_phone}",
                     "expires_in": 300  # 5 minutes
                 }
                 
