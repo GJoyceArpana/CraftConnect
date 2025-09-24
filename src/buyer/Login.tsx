@@ -12,14 +12,37 @@ const BuyerLogin: React.FC<BuyerLoginProps> = ({ onNavigate, onBack }) => {
   const [phone, setPhone] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [isSignUp, setIsSignUp] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
 
     if (isSignUp) {
-      // Sign up flow - go to OTP screen and pass phone/isSignUp flag.
-      // The route handler (buyer-otp) can read the payload and show OTP UI.
-      onNavigate('buyer-otp', { phone, isSignUp: true });
+      // Sign up flow - call send-otp API first
+      try {
+        const response = await fetch('http://localhost:5000/send-otp', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ phone }),
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          // OTP sent successfully, navigate to OTP screen
+          onNavigate('buyer-otp', { phone, isSignUp: true });
+        } else {
+          alert(data.error || 'Failed to send OTP. Please try again.');
+        }
+      } catch (error) {
+        console.error('Error sending OTP:', error);
+        alert('Network error. Please check your connection and try again.');
+      } finally {
+        setIsLoading(false);
+      }
       return;
     }
 
@@ -43,6 +66,8 @@ const BuyerLogin: React.FC<BuyerLoginProps> = ({ onNavigate, onBack }) => {
     } catch (err) {
       console.error('Error reading user from storage', err);
       alert('An error occurred. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -89,8 +114,8 @@ const BuyerLogin: React.FC<BuyerLoginProps> = ({ onNavigate, onBack }) => {
             </div>
           )}
 
-          <button type="submit" className="btn-primary w-full">
-            {isSignUp ? 'Send OTP' : 'Login'}
+          <button type="submit" className="btn-primary w-full" disabled={isLoading}>
+            {isLoading ? 'Please wait...' : (isSignUp ? 'Send OTP' : 'Login')}
           </button>
         </form>
 

@@ -19,6 +19,7 @@ const BuyerOtp: React.FC<BuyerOtpProps> = ({ onNavigate, onBack, tempData = {} }
   const [otp, setOtp] = useState<string>('');
   const [timer, setTimer] = useState<number>(30);
   const [isResending, setIsResending] = useState<boolean>(false);
+  const [isVerifying, setIsVerifying] = useState<boolean>(false);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -28,31 +29,69 @@ const BuyerOtp: React.FC<BuyerOtpProps> = ({ onNavigate, onBack, tempData = {} }
     return () => clearInterval(interval);
   }, []);
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    setIsVerifying(true);
 
-    // Demo validation: accept '1234' or any 4-digit OTP for demo flows
-    if (otp === '1234' || otp.length === 4) {
-      if (tempData.isSignUp) {
-        onNavigate('buyer-setpassword', tempData);
+    try {
+      const response = await fetch('http://localhost:5000/verify-otp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          phone: tempData.phone, 
+          otp 
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // OTP verified successfully
+        if (tempData.isSignUp) {
+          onNavigate('buyer-setpassword', tempData);
+        } else {
+          onNavigate('buyer-dashboard');
+        }
       } else {
-        onNavigate('buyer-dashboard');
+        alert(data.error || 'Invalid OTP. Please try again.');
       }
-    } else {
-      alert('Invalid OTP. Use 1234 for demo.');
+    } catch (error) {
+      console.error('Error verifying OTP:', error);
+      alert('Network error. Please check your connection and try again.');
+    } finally {
+      setIsVerifying(false);
     }
   };
 
-  const handleResend = () => {
+  const handleResend = async () => {
     if (isResending) return;
     setIsResending(true);
-    // Simulate resend: reset timer and show a toast/alert (replace with API in prod)
-    setTimer(30);
-    // pretend we call an API here...
-    setTimeout(() => {
+    
+    try {
+      const response = await fetch('http://localhost:5000/send-otp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ phone: tempData.phone }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setTimer(30);
+        alert(`OTP resent to ${tempData.phone}`);
+      } else {
+        alert(data.error || 'Failed to resend OTP. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error resending OTP:', error);
+      alert('Network error. Please check your connection and try again.');
+    } finally {
       setIsResending(false);
-      alert(`OTP resent to ${tempData.phone ?? 'your phone (demo)'} — demo OTP is 1234`);
-    }, 800);
+    }
   };
 
   return (
@@ -63,7 +102,6 @@ const BuyerOtp: React.FC<BuyerOtpProps> = ({ onNavigate, onBack, tempData = {} }
           <p className="text-[#666] mb-4">
             We've sent an OTP to {tempData.phone ?? '[phone number]'}
           </p>
-          <p className="text-sm text-[#d67a4a] font-medium">Demo OTP: 1234</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -80,8 +118,8 @@ const BuyerOtp: React.FC<BuyerOtpProps> = ({ onNavigate, onBack, tempData = {} }
             />
           </div>
 
-          <button type="submit" className="btn-primary w-full">
-            Verify OTP
+          <button type="submit" className="btn-primary w-full" disabled={isVerifying}>
+            {isVerifying ? 'Verifying...' : 'Verify OTP'}
           </button>
         </form>
 
