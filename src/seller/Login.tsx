@@ -45,6 +45,15 @@ const SellerLogin: React.FC<SellerLoginProps> = ({ onNavigate, onBack }) => {
 
         if (data.success) {
           // OTP sent successfully, navigate to OTP screen
+          
+          // Show dev OTP if available (for development)
+          if (data.dev_otp) {
+            alert(`🔧 DEV MODE: Your OTP is ${data.dev_otp}\n\nIn development, check console or this alert for OTP.`);
+            console.log('🔧 DEV MODE - OTP:', data.dev_otp);
+          } else {
+            alert('OTP sent to your phone number!');
+          }
+          
           onNavigate('seller-otp', { phone, isSignUp: true });
         } else {
           alert(data.error || 'Failed to send OTP. Please try again.');
