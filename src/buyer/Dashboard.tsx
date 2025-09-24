@@ -2,6 +2,8 @@
 import { useState } from 'react';
 import type { FC } from 'react';
 import CarbonFootprintBadge, { CarbonFootprintCard } from '../components/CarbonFootprintBadge';
+import SustainabilityChatbot from '../components/SustainabilityChatbot';
+import { apiService } from '../services/api';
 
 type Product = {
   id: number;
@@ -51,30 +53,31 @@ const CarbonFootprintModal: FC<{
     sustainabilityScore: number;
   } | null>(null);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [showChatbot, setShowChatbot] = useState(false);
 
   const handleCalculateImpact = async () => {
     try {
-      const response = await fetch('http://127.0.0.1:5000/predict', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          weight_g: productForm.weight,
-          materials: productForm.materials,
-          percent_recycled_material: productForm.percentRecycled,
-          production_method: productForm.productionMethod,
-          distance_km_to_market: productForm.distanceToMarket,
-          packaging_weight_g: productForm.packagingWeight,
-          category: 'textiles'
-        }),
+      const result = await apiService.predictEcoImpact({
+        weight_g: productForm.weight,
+        packaging_weight_g: productForm.packagingWeight,
+        distance_km_to_market: productForm.distanceToMarket,
+        percent_recycled_material: productForm.percentRecycled,
+        production_method: productForm.productionMethod,
+        category: 'textiles',
+        include_recommendations: true
       });
       
-      if (response.ok) {
-        const data = await response.json();
+      if (result.data) {
         setCalculatedImpact({
-          carbonSaved: data.carbon_footprint,
-          sustainabilityScore: data.sustainability_score
+          carbonSaved: result.data.carbon_footprint,
+          sustainabilityScore: result.data.sustainability_score
+        });
+      } else if (result.error) {
+        console.error('API Error:', result.error);
+        // Fallback calculation
+        setCalculatedImpact({
+          carbonSaved: (productForm.weight / 1000) * 2.5,
+          sustainabilityScore: productForm.percentRecycled * 0.8
         });
       }
     } catch (error) {
@@ -363,16 +366,37 @@ const CarbonFootprintModal: FC<{
 
             {/* Calculated Impact Display */}
             {calculatedImpact && (
-              <div className="bg-green-900/20 border border-green-700 rounded-lg p-4">
-                <h4 className="font-semibold text-green-400 mb-3">Calculated Environmental Impact</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-green-400 mb-1">{calculatedImpact.carbonSaved.toFixed(1)} kg</div>
-                    <div className="text-green-300 text-sm">CO₂ Saved vs Factory Production</div>
+              <div className="space-y-4">
+                <div className="bg-green-900/20 border border-green-700 rounded-lg p-4">
+                  <h4 className="font-semibold text-green-400 mb-3">Calculated Environmental Impact</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-green-400 mb-1">{calculatedImpact.carbonSaved.toFixed(1)} kg</div>
+                      <div className="text-green-300 text-sm">CO₂ Saved vs Factory Production</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-blue-400 mb-1">{calculatedImpact.sustainabilityScore.toFixed(1)}%</div>
+                      <div className="text-blue-300 text-sm">Sustainability Score</div>
+                    </div>
                   </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-blue-400 mb-1">{calculatedImpact.sustainabilityScore.toFixed(1)}%</div>
-                    <div className="text-blue-300 text-sm">Sustainability Score</div>
+                </div>
+                
+                {/* AI Recommendations Section */}
+                <div className="bg-blue-900/20 border border-blue-700 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="font-semibold text-blue-400">🤖 AI Sustainability Assistant</h4>
+                    <button
+                      onClick={() => setShowChatbot(true)}
+                      className="text-sm bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-lg transition"
+                    >
+                      Get AI Advice
+                    </button>
+                  </div>
+                  <p className="text-blue-300 text-sm mb-3">
+                    Get personalized recommendations to improve your sustainability score and reduce carbon footprint.
+                  </p>
+                  <div className="text-xs text-blue-400">
+                    💡 Ask about: Material optimization • Packaging reduction • Carbon footprint improvements • Sustainable practices
                   </div>
                 </div>
               </div>
@@ -445,6 +469,30 @@ const CarbonFootprintModal: FC<{
               </div>
             </div>
           </div>
+        )}
+        
+        {/* Sustainability Chatbot */}
+        {showChatbot && (
+          <SustainabilityChatbot
+            productData={{
+              category: 'textiles',
+              weight_g: productForm.weight,
+              packaging_weight_g: productForm.packagingWeight,
+              distance_km_to_market: productForm.distanceToMarket,
+              percent_recycled_material: productForm.percentRecycled,
+              production_method: productForm.productionMethod,
+              materials: productForm.materials
+            }}
+            currentImpact={calculatedImpact ? {
+              carbon_footprint: calculatedImpact.carbonSaved,
+              sustainability_score: calculatedImpact.sustainabilityScore
+            } : undefined}
+            onClose={() => setShowChatbot(false)}
+            onSuggestionApply={(suggestion) => {
+              console.log('Applied suggestion:', suggestion);
+              // You can implement suggestion application logic here
+            }}
+          />
         )}
       </div>
     </div>

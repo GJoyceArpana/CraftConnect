@@ -70,25 +70,6 @@ const Home: FC<HomeProps> = ({ onNavigate }) => {
             <span className="relative z-10">🎨 Start Selling</span>
           </button>
         </div>
-        
-        {/* Temporary Debug & Quick Access Links */}
-        <div className="mt-8 text-center space-y-2">
-          <div>
-            <button 
-              className="text-base bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg transition-colors mr-4"
-              onClick={() => onNavigate('quick-login')}
-            >
-              🚀 Quick Test Login
-            </button>
-            <button 
-              className="text-sm text-gray-500 hover:text-gray-700 underline"
-              onClick={() => onNavigate('debug')}
-            >
-              🔧 Debug Profile Issues
-            </button>
-          </div>
-          <p className="text-xs text-gray-400">Temporary testing tools - skip signup and access profiles instantly</p>
-        </div>
       </div>
     </div>
   );

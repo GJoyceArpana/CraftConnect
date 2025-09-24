@@ -29,6 +29,39 @@ export interface ProductAnalysis {
   fair_pricing?: FairPriceSuggestion & { error?: string };
 }
 
+export interface ChatResponse {
+  success: boolean;
+  response?: string;
+  suggestions?: string[];
+  timestamp?: string;
+  error?: string;
+  fallback_response?: string;
+}
+
+export interface AIAnalysisResponse {
+  success: boolean;
+  analysis?: string;
+  suggestions?: Array<{
+    category: string;
+    action: string;
+    description: string;
+    impact: string;
+    difficulty: string;
+  }>;
+  timestamp?: string;
+  error?: string;
+  fallback_suggestions?: string[];
+}
+
+export interface ParameterSuggestionsResponse {
+  success: boolean;
+  parameter_suggestions?: string;
+  parsed_changes?: Record<string, any>;
+  target_area?: string;
+  error?: string;
+  fallback_suggestions?: Record<string, string>;
+}
+
 export interface ApiResponse<T> {
   data?: T;
   error?: string;
@@ -68,8 +101,8 @@ class ApiService {
     });
   }
 
-  async predictEcoImpact(product: Omit<Product, 'name' | 'materials'>): Promise<ApiResponse<EcoImpactPrediction>> {
-    return this.fetchApi<EcoImpactPrediction>('/predict', {
+  async predictEcoImpact(product: Omit<Product, 'name' | 'materials'> & { include_recommendations?: boolean }): Promise<ApiResponse<EcoImpactPrediction & { ai_recommendations?: AIAnalysisResponse }>> {
+    return this.fetchApi<EcoImpactPrediction & { ai_recommendations?: AIAnalysisResponse }>('/predict', {
       method: 'POST',
       body: JSON.stringify(product),
     });
@@ -98,6 +131,39 @@ class ApiService {
     return this.fetchApi<ProductAnalysis>('/product-analysis', {
       method: 'POST',
       body: JSON.stringify(product),
+    });
+  }
+
+  // AI Chatbot Endpoints
+  async chatWithAI(message: string, context?: {
+    product_data?: Partial<Product>;
+    current_impact?: Partial<EcoImpactPrediction>;
+    conversation_history?: string;
+  }): Promise<ApiResponse<ChatResponse>> {
+    return this.fetchApi<ChatResponse>('/ai/chat', {
+      method: 'POST',
+      body: JSON.stringify({ message, context }),
+    });
+  }
+
+  async getAIAnalysis(product_data: Partial<Product>, current_impact: Partial<EcoImpactPrediction>): Promise<ApiResponse<AIAnalysisResponse>> {
+    return this.fetchApi<AIAnalysisResponse>('/ai/analyze', {
+      method: 'POST',
+      body: JSON.stringify({ product_data, current_impact }),
+    });
+  }
+
+  async getParameterSuggestions(current_params: Partial<Product>, target_improvement?: string): Promise<ApiResponse<ParameterSuggestionsResponse>> {
+    return this.fetchApi<ParameterSuggestionsResponse>('/ai/parameter-suggestions', {
+      method: 'POST',
+      body: JSON.stringify({ current_params, target_improvement: target_improvement || 'overall' }),
+    });
+  }
+
+  async getQuickTips(category?: string): Promise<ApiResponse<ChatResponse>> {
+    return this.fetchApi<ChatResponse>('/ai/quick-tips', {
+      method: 'POST',
+      body: JSON.stringify({ category: category || 'general' }),
     });
   }
 }

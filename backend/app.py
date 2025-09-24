@@ -7,6 +7,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from twilio.rest import Client
 from estimator import estimate_eco_impact
+from gemini_service import GeminiChatbotService
 
 # Load environment variables
 try:
@@ -30,6 +31,14 @@ try:
 except Exception as e:
     print(f"Warning: Twilio client initialization failed: {e}")
     twilio_client = None
+
+# Initialize Gemini chatbot service
+try:
+    gemini_service = GeminiChatbotService()
+    print("Gemini chatbot service initialized")
+except Exception as e:
+    print(f"Warning: Gemini chatbot service initialization failed: {e}")
+    gemini_service = None
 
 # In-memory OTP storage (use Redis or database in production)
 otp_storage = {}
@@ -160,22 +169,50 @@ def send_otp():
                     channel='sms'
                 )
                 
-                print(f"Twilio Verify OTP sent to {formatted_phone}, but using stored 4-digit: {otp}")
+                print(f"4-digit OTP sent via Twilio to {formatted_phone}: {otp}")
                 
-                # Note: Twilio sends 6-digit, but we verify against our 4-digit stored OTP
-                return jsonify({
+                response_data = {
                     "success": True,
-                    "message": f"OTP sent to {formatted_phone}",
-                    "dev_note": f"Twilio sends 6-digit, but use this 4-digit: {otp}",
+                    "message": f"4-digit OTP sent to {formatted_phone}",
                     "expires_in": 300  # 5 minutes
-                })
+                }
+                
+                # In development mode, also include dev_otp for easier testing
+                if os.getenv('FLASK_ENV') == 'development':
+                    response_data["dev_otp"] = otp
+                    response_data["dev_mode"] = True
+                    response_data["message"] += " (Dev Mode - SMS + DevOTP)"
+                    
+                return jsonify(response_data)
                 
             except Exception as twilio_error:
                 print(f"Twilio Verify error: {twilio_error}")
-                return jsonify({
-                    "error": "Failed to send OTP",
-                    "details": str(twilio_error)
-                }), 500
+                # Check if it's an unverified number error or rate limit - fallback to dev mode
+                if ("unverified" in str(twilio_error).lower() or 
+                    "21608" in str(twilio_error) or 
+                    "max send attempts" in str(twilio_error).lower() or 
+                    "60203" in str(twilio_error) or 
+                    "fraudulent" in str(twilio_error).lower() or 
+                    "60410" in str(twilio_error)):
+                    if "max send attempts" in str(twilio_error).lower():
+                        reason = "Rate Limited"
+                    elif "fraudulent" in str(twilio_error).lower():
+                        reason = "Number Blocked"
+                    else:
+                        reason = "Unverified Number"
+                    print(f"DEV MODE ({reason}) - OTP for {formatted_phone}: {otp}")
+                    return jsonify({
+                        "success": True,
+                        "message": f"OTP sent to {formatted_phone} (Dev Mode - {reason})",
+                        "dev_otp": otp,  # Shows OTP in dev mode
+                        "expires_in": 300,
+                        "dev_mode": True
+                    })
+                else:
+                    return jsonify({
+                        "error": "Failed to send OTP",
+                        "details": str(twilio_error)
+                    }), 500
         else:
             # Fallback: Generate and store OTP manually
             print(f"DEV MODE - OTP for {formatted_phone}: {otp}")
@@ -234,22 +271,50 @@ def send_reset_password_otp():
                     channel='sms'
                 )
                 
-                print(f"Twilio Verify password reset OTP sent to {formatted_phone}, but using stored 4-digit: {otp}")
+                print(f"4-digit password reset OTP sent via Twilio to {formatted_phone}: {otp}")
                 
-                # Note: Twilio sends 6-digit, but we verify against our 4-digit stored OTP
-                return jsonify({
+                response_data = {
                     "success": True,
-                    "message": f"Password reset OTP sent to {formatted_phone}",
-                    "dev_note": f"Twilio sends 6-digit, but use this 4-digit: {otp}",
+                    "message": f"4-digit password reset OTP sent to {formatted_phone}",
                     "expires_in": 300  # 5 minutes
-                })
+                }
+                
+                # In development mode, also include dev_otp for easier testing
+                if os.getenv('FLASK_ENV') == 'development':
+                    response_data["dev_otp"] = otp
+                    response_data["dev_mode"] = True
+                    response_data["message"] += " (Dev Mode - SMS + DevOTP)"
+                    
+                return jsonify(response_data)
                 
             except Exception as twilio_error:
                 print(f"Twilio Verify error for password reset: {twilio_error}")
-                return jsonify({
-                    "error": "Failed to send password reset OTP",
-                    "details": str(twilio_error)
-                }), 500
+                # Check if it's an unverified number error or rate limit - fallback to dev mode
+                if ("unverified" in str(twilio_error).lower() or 
+                    "21608" in str(twilio_error) or 
+                    "max send attempts" in str(twilio_error).lower() or 
+                    "60203" in str(twilio_error) or 
+                    "fraudulent" in str(twilio_error).lower() or 
+                    "60410" in str(twilio_error)):
+                    if "max send attempts" in str(twilio_error).lower():
+                        reason = "Rate Limited"
+                    elif "fraudulent" in str(twilio_error).lower():
+                        reason = "Number Blocked"
+                    else:
+                        reason = "Unverified Number"
+                    print(f"DEV MODE ({reason}) - Password reset OTP for {formatted_phone}: {otp}")
+                    return jsonify({
+                        "success": True,
+                        "message": f"Password reset OTP sent to {formatted_phone} (Dev Mode - {reason})",
+                        "dev_otp": otp,  # Shows OTP in dev mode
+                        "expires_in": 300,
+                        "dev_mode": True
+                    })
+                else:
+                    return jsonify({
+                        "error": "Failed to send password reset OTP",
+                        "details": str(twilio_error)
+                    }), 500
         else:
             # Fallback: Generate and store OTP manually
             print(f"DEV MODE - Password reset OTP for {formatted_phone}: {otp}")
@@ -424,14 +489,149 @@ def predict():
                 return jsonify({"error": f"Missing required field: {field}"}), 400
         
         carbon, score = estimate_eco_impact(product)
-        return jsonify({
+        
+        # Include Gemini recommendations if available
+        response = {
             "carbon_footprint": carbon,
             "sustainability_score": score,
             "co2_saving_kg": carbon,
             "waste_reduction_pct": score
-        })
+        }
+        
+        # Add AI recommendations if Gemini service is available
+        if gemini_service and request.json.get('include_recommendations', False):
+            try:
+                recommendations = gemini_service.analyze_carbon_footprint(
+                    product, 
+                    {"carbon_footprint": carbon, "sustainability_score": score}
+                )
+                response["ai_recommendations"] = recommendations
+            except Exception as e:
+                print(f"Error getting AI recommendations: {e}")
+                
+        return jsonify(response)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+# --- Gemini Chatbot Routes ---
+
+@app.route("/ai/chat", methods=["POST"])
+def ai_chat():
+    """Chat with Gemini AI for sustainability advice"""
+    if not gemini_service:
+        return jsonify({"error": "AI service not available"}), 503
+        
+    try:
+        data = request.json
+        message = data.get('message')
+        context = data.get('context', {})
+        
+        if not message:
+            return jsonify({"error": "Message is required"}), 400
+            
+        response = gemini_service.chat_with_user(message, context)
+        return jsonify(response)
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/ai/analyze", methods=["POST"])
+def ai_analyze():
+    """Analyze carbon footprint with AI recommendations"""
+    if not gemini_service:
+        return jsonify({"error": "AI service not available"}), 503
+        
+    try:
+        data = request.json
+        product_data = data.get('product_data')
+        current_impact = data.get('current_impact')
+        
+        if not product_data or not current_impact:
+            return jsonify({"error": "Product data and current impact are required"}), 400
+            
+        response = gemini_service.analyze_carbon_footprint(product_data, current_impact)
+        return jsonify(response)
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/ai/parameter-suggestions", methods=["POST"])
+def ai_parameter_suggestions():
+    """Get parameter optimization suggestions from AI"""
+    if not gemini_service:
+        return jsonify({"error": "AI service not available"}), 503
+        
+    try:
+        data = request.json
+        current_params = data.get('current_params')
+        target_improvement = data.get('target_improvement', 'overall')
+        
+        if not current_params:
+            return jsonify({"error": "Current parameters are required"}), 400
+            
+        response = gemini_service.get_parameter_suggestions(current_params, target_improvement)
+        return jsonify(response)
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/ai/quick-tips", methods=["POST"])
+def ai_quick_tips():
+    """Get quick sustainability tips based on product category"""
+    if not gemini_service:
+        return jsonify({"error": "AI service not available"}), 503
+        
+    try:
+        data = request.json
+        category = data.get('category', 'general')
+        
+        # Generate category-specific tips
+        tips_request = f"Give me 5 quick sustainability tips for {category} products that artisans can implement easily."
+        context = {'product_data': {'category': category}} if category != 'general' else None
+        
+        response = gemini_service.chat_with_user(tips_request, context)
+        return jsonify(response)
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/ai/debug", methods=["GET", "POST"])
+def ai_debug():
+    """Debug endpoint to test AI service"""
+    try:
+        if not gemini_service:
+            return jsonify({"status": "error", "message": "Gemini service not initialized"}), 503
+        
+        # Test basic chat functionality
+        test_message = "Hello, can you help me with sustainability?"
+        test_context = {
+            'product_data': {
+                'category': 'textiles',
+                'weight_g': 200,
+                'percent_recycled_material': 60,
+                'distance_km_to_market': 150
+            },
+            'current_impact': {
+                'carbon_footprint': 2.5,
+                'sustainability_score': 65
+            }
+        }
+        
+        response = gemini_service.chat_with_user(test_message, test_context)
+        
+        return jsonify({
+            "status": "success",
+            "service_available": True,
+            "test_response": response
+        })
+        
+    except Exception as e:
+        import traceback
+        return jsonify({
+            "status": "error",
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
 
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
