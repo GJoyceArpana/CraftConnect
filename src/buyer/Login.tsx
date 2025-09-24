@@ -109,12 +109,37 @@ const BuyerLogin: React.FC<BuyerLoginProps> = ({ onNavigate, onBack }) => {
     
     setIsLoading(true);
     try {
-      throw new Error('Password reset temporarily unavailable');
-      setShowForgotPassword(true);
-      setResetStep('otp');
-      alert('OTP sent to your phone for password reset.');
+      const response = await fetch('http://127.0.0.1:5000/reset-password-otp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          phone: phone,
+          user_type: 'buyer'
+        }),
+      });
+
+      const data = await response.json();
+      console.log('Password reset OTP response:', data);
+
+      if (data.success) {
+        // Show dev OTP if available (for development)
+        if (data.dev_otp) {
+          alert(`🔧 DEV MODE: Your password reset OTP is ${data.dev_otp}\n\nIn development, check console or this alert for OTP.`);
+          console.log('🔧 DEV MODE - Password Reset OTP:', data.dev_otp);
+        } else {
+          alert('Password reset OTP sent to your phone!');
+        }
+        
+        setShowForgotPassword(true);
+        setResetStep('otp');
+      } else {
+        alert(data.error || 'Failed to send reset OTP.');
+      }
     } catch (error: any) {
-      alert(error.message || 'Failed to send reset OTP.');
+      console.error('Error sending reset OTP:', error);
+      alert('Failed to send reset OTP. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -133,14 +158,38 @@ const BuyerLogin: React.FC<BuyerLoginProps> = ({ onNavigate, onBack }) => {
     
     setIsLoading(true);
     try {
-      throw new Error('Password reset temporarily unavailable');
-      alert('Password reset successful! You can now login with your new password.');
-      setShowForgotPassword(false);
-      setResetStep('phone');
-      setOtp('');
-      setNewPassword('');
+      // First verify OTP with backend
+      const verifyResponse = await fetch('http://127.0.0.1:5000/reset-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          phone: phone,
+          otp: otp,
+          new_password: newPassword,
+          user_type: 'buyer'
+        }),
+      });
+
+      const verifyData = await verifyResponse.json();
+      console.log('Password reset verification response:', verifyData);
+
+      if (verifyData.success) {
+        // Update password in Firebase
+        await UserService.setUserPassword(phone, newPassword, 'buyer');
+        
+        alert('Password reset successful! You can now login with your new password.');
+        setShowForgotPassword(false);
+        setResetStep('phone');
+        setOtp('');
+        setNewPassword('');
+      } else {
+        alert(verifyData.error || 'Failed to verify OTP.');
+      }
     } catch (error: any) {
-      alert(error.message || 'Failed to reset password.');
+      console.error('Error resetting password:', error);
+      alert('Failed to reset password. Please try again.');
     } finally {
       setIsLoading(false);
     }

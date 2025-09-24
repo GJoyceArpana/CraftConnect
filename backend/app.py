@@ -185,6 +185,173 @@ def send_otp():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# --- Password Reset Routes ---
+
+@app.route("/reset-password-otp", methods=["POST"])
+def send_reset_password_otp():
+    """Send OTP for password reset"""
+    try:
+        data = request.get_json()
+        phone = data.get('phone')
+        user_type = data.get('user_type')  # 'buyer' or 'seller'
+        
+        if not phone or not user_type:
+            return jsonify({"error": "Phone number and user type are required"}), 400
+        
+        if user_type not in ['buyer', 'seller']:
+            return jsonify({"error": "Invalid user type"}), 400
+        
+        # Clean expired OTPs
+        clean_expired_otps()
+        
+        # Format phone number
+        formatted_phone = format_phone_number(phone)
+        
+        # Generate OTP for password reset (different key)
+        otp = generate_otp()
+        reset_key = f"reset_{formatted_phone}"
+        
+        # Store OTP with expiration (5 minutes)
+        expires_at = datetime.now() + timedelta(minutes=5)
+        otp_storage[reset_key] = {
+            'otp': otp,
+            'expires_at': expires_at,
+            'attempts': 0,
+            'user_type': user_type
+        }
+        
+        # Use Twilio Verify API
+        if twilio_client and TWILIO_VERIFY_SID:
+            try:
+                verification = twilio_client.verify.v2.services(TWILIO_VERIFY_SID).verifications.create(
+                    to=formatted_phone,
+                    channel='sms'
+                )
+                
+                print(f"Password reset OTP sent to {formatted_phone}, status: {verification.status}")
+                
+                return jsonify({
+                    "success": True,
+                    "message": f"Password reset OTP sent to {formatted_phone}",
+                    "expires_in": 600  # Twilio Verify default is 10 minutes
+                })
+                
+            except Exception as twilio_error:
+                print(f"Twilio Verify error for password reset: {twilio_error}")
+                return jsonify({
+                    "error": "Failed to send password reset OTP",
+                    "details": str(twilio_error)
+                }), 500
+        else:
+            # Fallback: Generate and store OTP manually
+            print(f"DEV MODE - Password reset OTP for {formatted_phone}: {otp}")
+            return jsonify({
+                "success": True,
+                "message": f"Password reset OTP sent to {formatted_phone}",
+                "dev_otp": otp,  # Shows OTP in dev mode
+                "expires_in": 300
+            })
+            
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/reset-password", methods=["POST"])
+def reset_password():
+    """Verify OTP and reset password"""
+    try:
+        data = request.get_json()
+        phone = data.get('phone')
+        otp = data.get('otp')
+        new_password = data.get('new_password')
+        user_type = data.get('user_type')
+        
+        if not phone or not otp or not new_password or not user_type:
+            return jsonify({"error": "Phone, OTP, new password, and user type are required"}), 400
+        
+        if len(new_password) < 6:
+            return jsonify({"error": "Password must be at least 6 characters long"}), 400
+        
+        # Clean expired OTPs
+        clean_expired_otps()
+        
+        # Format phone number
+        formatted_phone = format_phone_number(phone)
+        reset_key = f"reset_{formatted_phone}"
+        
+        # Check if reset OTP exists
+        if reset_key not in otp_storage:
+            return jsonify({
+                "success": False,
+                "error": "Password reset OTP not found or expired"
+            }), 400
+        
+        stored_data = otp_storage[reset_key]
+        
+        # Check attempts limit
+        if stored_data['attempts'] >= 3:
+            del otp_storage[reset_key]
+            return jsonify({
+                "success": False,
+                "error": "Too many failed attempts. Please request a new password reset OTP."
+            }), 400
+        
+        # Use Twilio Verify API for verification
+        if twilio_client and TWILIO_VERIFY_SID:
+            try:
+                verification_check = twilio_client.verify.v2.services(TWILIO_VERIFY_SID).verification_checks.create(
+                    to=formatted_phone,
+                    code=otp
+                )
+                
+                print(f"Password reset verification check for {formatted_phone}, status: {verification_check.status}")
+                
+                if verification_check.status == 'approved':
+                    # Remove from local storage
+                    if reset_key in otp_storage:
+                        del otp_storage[reset_key]
+                    
+                    return jsonify({
+                        "success": True,
+                        "message": "OTP verified. Password can now be reset.",
+                        "phone": formatted_phone,
+                        "user_type": user_type
+                    })
+                else:
+                    return jsonify({
+                        "success": False,
+                        "error": "Invalid or expired password reset OTP"
+                    }), 400
+                    
+            except Exception as twilio_error:
+                print(f"Twilio Verify error for password reset: {twilio_error}")
+                return jsonify({
+                    "success": False,
+                    "error": "Failed to verify password reset OTP",
+                    "details": str(twilio_error)
+                }), 500
+        else:
+            # Fallback: Manual OTP verification
+            if stored_data['otp'] == otp:
+                # OTP is correct, remove from storage
+                del otp_storage[reset_key]
+                return jsonify({
+                    "success": True,
+                    "message": "OTP verified. Password can now be reset.",
+                    "phone": formatted_phone,
+                    "user_type": user_type
+                })
+            else:
+                # Increment attempts
+                stored_data['attempts'] += 1
+                return jsonify({
+                    "success": False,
+                    "error": "Invalid password reset OTP",
+                    "attempts_remaining": 3 - stored_data['attempts']
+                }), 400
+            
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route("/verify-otp", methods=["POST"])
 def verify_otp():
     """Verify OTP for phone number"""

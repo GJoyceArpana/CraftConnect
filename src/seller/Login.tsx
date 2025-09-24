@@ -14,6 +14,10 @@ const SellerLogin: React.FC<SellerLoginProps> = ({ onNavigate, onBack }) => {
   const [password, setPassword] = useState<string>('');
   const [isSignUp, setIsSignUp] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [showForgotPassword, setShowForgotPassword] = useState<boolean>(false);
+  const [otp, setOtp] = useState<string>('');
+  const [newPassword, setNewPassword] = useState<string>('');
+  const [resetStep, setResetStep] = useState<'phone' | 'otp' | 'password'>('phone');
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -89,6 +93,100 @@ const SellerLogin: React.FC<SellerLoginProps> = ({ onNavigate, onBack }) => {
     }
   };
 
+  const handleForgotPassword = async () => {
+    if (!phone.trim()) {
+      alert('Please enter your phone number first.');
+      return;
+    }
+    
+    setIsLoading(true);
+    try {
+      const response = await fetch('http://127.0.0.1:5000/reset-password-otp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          phone: phone,
+          user_type: 'seller'
+        }),
+      });
+
+      const data = await response.json();
+      console.log('Password reset OTP response:', data);
+
+      if (data.success) {
+        // Show dev OTP if available (for development)
+        if (data.dev_otp) {
+          alert(`🔧 DEV MODE: Your password reset OTP is ${data.dev_otp}\n\nIn development, check console or this alert for OTP.`);
+          console.log('🔧 DEV MODE - Password Reset OTP:', data.dev_otp);
+        } else {
+          alert('Password reset OTP sent to your phone!');
+        }
+        
+        setShowForgotPassword(true);
+        setResetStep('otp');
+      } else {
+        alert(data.error || 'Failed to send reset OTP.');
+      }
+    } catch (error: any) {
+      console.error('Error sending reset OTP:', error);
+      alert('Failed to send reset OTP. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!otp.trim() || !newPassword.trim()) {
+      alert('Please fill in all fields.');
+      return;
+    }
+    
+    if (newPassword.length < 6) {
+      alert('Password must be at least 6 characters long.');
+      return;
+    }
+    
+    setIsLoading(true);
+    try {
+      // First verify OTP with backend
+      const verifyResponse = await fetch('http://127.0.0.1:5000/reset-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          phone: phone,
+          otp: otp,
+          new_password: newPassword,
+          user_type: 'seller'
+        }),
+      });
+
+      const verifyData = await verifyResponse.json();
+      console.log('Password reset verification response:', verifyData);
+
+      if (verifyData.success) {
+        // Update password in Firebase
+        await UserService.setUserPassword(phone, newPassword, 'seller');
+        
+        alert('Password reset successful! You can now login with your new password.');
+        setShowForgotPassword(false);
+        setResetStep('phone');
+        setOtp('');
+        setNewPassword('');
+      } else {
+        alert(verifyData.error || 'Failed to verify OTP.');
+      }
+    } catch (error: any) {
+      console.error('Error resetting password:', error);
+      alert('Failed to reset password. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#fdfaf6] flex items-center justify-center px-4">
       <div className="dashboard-card w-full max-w-md">
@@ -118,9 +216,19 @@ const SellerLogin: React.FC<SellerLoginProps> = ({ onNavigate, onBack }) => {
 
           {!isSignUp && (
             <div>
-              <label className="block text-sm font-medium text-[#333] mb-2">
-                Password
-              </label>
+              <div className="flex justify-between items-center mb-2">
+                <label className="block text-sm font-medium text-[#333]">
+                  Password
+                </label>
+                <button
+                  type="button"
+                  onClick={handleForgotPassword}
+                  className="text-sm text-[#d67a4a] hover:underline"
+                  disabled={isLoading}
+                >
+                  Forgot Password?
+                </button>
+              </div>
               <input
                 type="password"
                 value={password}
@@ -136,6 +244,43 @@ const SellerLogin: React.FC<SellerLoginProps> = ({ onNavigate, onBack }) => {
             {isLoading ? 'Please wait...' : (isSignUp ? 'Send OTP' : 'Login')}
           </button>
         </form>
+
+        {showForgotPassword && (
+          <div className="mt-6 space-y-4">
+            {resetStep === 'otp' ? (
+              <div>
+                <label className="block text-sm font-medium text-[#333] mb-2">Enter OTP</label>
+                <input
+                  type="text"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                  className="input-field text-center text-2xl tracking-widest"
+                  placeholder="1234"
+                  maxLength={4}
+                  required
+                />
+                <button onClick={() => setResetStep('password')} className="btn-primary w-full mt-4" type="button">
+                  Continue
+                </button>
+              </div>
+            ) : (
+              <div>
+                <label className="block text-sm font-medium text-[#333] mb-2">New Password</label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="input-field"
+                  placeholder="Enter new password"
+                  required
+                />
+                <button onClick={handleResetPassword} className="btn-primary w-full mt-4" type="button" disabled={isLoading}>
+                  {isLoading ? 'Resetting...' : 'Reset Password'}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="mt-6 text-center">
           <button
