@@ -1,7 +1,7 @@
 // src/BuyerLogin.tsx
 import React, { useState, FormEvent } from 'react';
-import { UserService } from '../firebase/userService';
-import { PasswordResetService } from '../firebase/passwordReset';
+import { UserService } from '../firebase/mockService';
+import { apiService } from '../services/api';
 
 type NavigateFn = (path: string, payload?: any) => void;
 

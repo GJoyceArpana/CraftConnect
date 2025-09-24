@@ -16,6 +16,19 @@ export interface EcoImpactPrediction {
   sustainability_score: number;
 }
 
+export interface FairPriceSuggestion {
+  suggested_price: number;
+  category: string;
+  materials: string;
+  hours: number;
+  base_price: number;
+}
+
+export interface ProductAnalysis {
+  eco_impact?: EcoImpactPrediction & { error?: string };
+  fair_pricing?: FairPriceSuggestion & { error?: string };
+}
+
 export interface ApiResponse<T> {
   data?: T;
   error?: string;
@@ -62,8 +75,30 @@ class ApiService {
     });
   }
 
-  async getApiStatus(): Promise<ApiResponse<{ message: string; endpoints: string[] }>> {
+  async getApiStatus(): Promise<ApiResponse<{ message: string; endpoints: string[]; features: any }>> {
     return this.fetchApi('/');
+  }
+
+  async suggestFairPrice(data: {
+    category: string;
+    materials: string;
+    hours?: number;
+    base_price?: number;
+  }): Promise<ApiResponse<FairPriceSuggestion>> {
+    return this.fetchApi<FairPriceSuggestion>('/fair-price', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getProductAnalysis(product: Product & { 
+    production_hours?: number;
+    base_price?: number;
+  }): Promise<ApiResponse<ProductAnalysis>> {
+    return this.fetchApi<ProductAnalysis>('/product-analysis', {
+      method: 'POST',
+      body: JSON.stringify(product),
+    });
   }
 }
 

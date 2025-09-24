@@ -1,7 +1,7 @@
 // src/App.tsx
 import { useState, useEffect } from 'react';
 import Home from './Home';
-import { UserService } from './firebase/userService';
+import { UserService } from './firebase/mockService';
 import './firebase/adminUtils'; // Make AdminUtils available in console
 import './resetAccount'; // Make reset function available
 import './firebase/passwordReset'; // Make PasswordResetService available

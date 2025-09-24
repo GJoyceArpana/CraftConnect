@@ -1,6 +1,6 @@
 // src/BuyerSetupProfile.tsx
 import React, { useState, ChangeEvent, FormEvent } from 'react';
-import { UserService } from '../firebase/userService';
+import { UserService } from '../firebase/mockService';
 
 type TempData = {
   phone?: string;
