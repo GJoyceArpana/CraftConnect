@@ -8,6 +8,7 @@ from flask_cors import CORS
 from twilio.rest import Client
 from estimator import estimate_eco_impact
 from gemini_service import GeminiChatbotService
+from local_storage_service import get_local_storage_service
 
 # Load environment variables
 try:
@@ -39,6 +40,14 @@ try:
 except Exception as e:
     print(f"Warning: Gemini chatbot service initialization failed: {e}")
     gemini_service = None
+
+# Initialize storage service (local storage for development)
+try:
+    storage_service = get_local_storage_service()
+    print("Storage service initialized")
+except Exception as e:
+    print(f"Warning: Storage service initialization failed: {e}")
+    storage_service = None
 
 # In-memory OTP storage (use Redis or database in production)
 otp_storage = {}
@@ -632,6 +641,226 @@ def ai_debug():
             "error": str(e),
             "traceback": traceback.format_exc()
         }), 500
+
+# --- Firebase-powered Real-time API Routes ---
+
+@app.route("/api/products", methods=["POST"])
+def create_product_api():
+    """Create a new product listing with storage"""
+    if not storage_service:
+        return jsonify({"error": "Storage service not available"}), 503
+    
+    try:
+        data = request.get_json()
+        
+        # Process product data
+        product_data = {
+            'name': data.get('name'),
+            'description': data.get('description'),
+            'price': float(data.get('price', 0)),
+            'category': data.get('category'),
+            'material': data.get('material', ''),
+            'weight': float(data.get('weight', 0)),
+            'process': data.get('process', ''),
+            'seller_id': data.get('sellerId') or data.get('seller_id'),
+            'seller_name': data.get('sellerName') or data.get('seller_name', 'Unknown'),
+            'image': data.get('productImage') or data.get('image', ''),
+            'packaging_weight': float(data.get('packagingWeight', 0)),
+            'distance_to_market': float(data.get('distanceToMarket', 0)),
+            'recycled_material': float(data.get('recycledMaterial', 0)),
+            'co2_prediction': float(data.get('co2Prediction', 0)),
+            'sustainability_score': float(data.get('sustainabilityScore', 0)),
+            'co2_saving_kg': float(data.get('co2SavingKg', 0)),
+            'waste_reduction_pct': float(data.get('wasteReductionPct', 0))
+        }
+        
+        # Create product in storage
+        product_id = storage_service.create_product(product_data)
+        
+        if product_id:
+            return jsonify({
+                'success': True,
+                'product_id': product_id,
+                'message': 'Product created successfully'
+            })
+        else:
+            return jsonify({"error": "Failed to create product"}), 500
+            
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/products", methods=["GET"])
+def get_products_api():
+    """Get products for marketplace"""
+    if not storage_service:
+        return jsonify({"error": "Firebase service not available"}), 503
+    
+    try:
+        category = request.args.get('category')
+        seller_id = request.args.get('seller_id')
+        limit = int(request.args.get('limit', 20))
+        
+        filters = {}
+        if category:
+            filters['category'] = category
+        if seller_id:
+            filters['seller_id'] = seller_id
+            
+        products = storage_service.get_products(filters, limit)
+        return jsonify({
+            'success': True,
+            'products': products
+        })
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/products/search", methods=["GET"])
+def search_products_api():
+    """Search products"""
+    if not storage_service:
+        return jsonify({"error": "Firebase service not available"}), 503
+    
+    try:
+        search_term = request.args.get('q', '')
+        category = request.args.get('category')
+        limit = int(request.args.get('limit', 20))
+        
+        if not search_term:
+            return jsonify({"error": "Search term is required"}), 400
+            
+        products = storage_service.search_products(search_term, category, limit)
+        return jsonify({
+            'success': True,
+            'products': products
+        })
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/orders", methods=["POST"])
+def create_order_api():
+    """Create a new order"""
+    if not storage_service:
+        return jsonify({"error": "Firebase service not available"}), 503
+    
+    try:
+        data = request.get_json()
+        
+        # Process order data
+        order_data = {
+            'buyer_id': data.get('buyer_id'),
+            'seller_id': data.get('seller_id'),
+            'product_id': data.get('product_id'),
+            'product_name': data.get('product_name'),
+            'quantity': int(data.get('quantity', 1)),
+            'unit_price': float(data.get('unit_price', 0)),
+            'total_amount': float(data.get('total_amount', 0)),
+            'amount_saved': float(data.get('amount_saved', 0)),
+            'shipping_address': data.get('shipping_address', {}),
+            'payment_method': data.get('payment_method', 'pending')
+        }
+        
+        # Create order in Firebase
+        order_id = storage_service.create_order(order_data)
+        
+        if order_id:
+            return jsonify({
+                'success': True,
+                'order_id': order_id,
+                'message': 'Order placed successfully'
+            })
+        else:
+            return jsonify({"error": "Failed to create order"}), 500
+            
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/dashboard/seller/<seller_id>", methods=["GET"])
+def get_seller_dashboard_api(seller_id):
+    """Get real-time seller dashboard data"""
+    if not storage_service:
+        return jsonify({"error": "Firebase service not available"}), 503
+    
+    try:
+        dashboard_data = storage_service.get_seller_dashboard_data(seller_id)
+        return jsonify({
+            'success': True,
+            'data': dashboard_data
+        })
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/dashboard/buyer/<buyer_id>", methods=["GET"])
+def get_buyer_dashboard_api(buyer_id):
+    """Get real-time buyer dashboard data"""
+    if not storage_service:
+        return jsonify({"error": "Firebase service not available"}), 503
+    
+    try:
+        dashboard_data = storage_service.get_buyer_dashboard_data(buyer_id)
+        return jsonify({
+            'success': True,
+            'data': dashboard_data
+        })
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/users", methods=["POST"])
+def create_user_api():
+    """Create or update user profile"""
+    if not storage_service:
+        return jsonify({"error": "Firebase service not available"}), 503
+    
+    try:
+        data = request.get_json()
+        user_id = data.get('user_id') or data.get('id')
+        
+        if not user_id:
+            return jsonify({"error": "User ID is required"}), 400
+            
+        user_data = {
+            'name': data.get('name'),
+            'email': data.get('email'),
+            'phone': data.get('phone'),
+            'user_type': data.get('user_type', 'buyer'),  # buyer or seller
+            'profile_complete': data.get('profile_complete', False)
+        }
+        
+        success = storage_service.create_user(user_id, user_data)
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'User profile updated successfully'
+            })
+        else:
+            return jsonify({"error": "Failed to update user profile"}), 500
+            
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/users/<user_id>", methods=["GET"])
+def get_user_api(user_id):
+    """Get user profile"""
+    if not storage_service:
+        return jsonify({"error": "Firebase service not available"}), 503
+    
+    try:
+        user_data = storage_service.get_user(user_id)
+        
+        if user_data:
+            return jsonify({
+                'success': True,
+                'user': user_data
+            })
+        else:
+            return jsonify({"error": "User not found"}), 404
+            
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
     app.run(debug=True, port=5000)

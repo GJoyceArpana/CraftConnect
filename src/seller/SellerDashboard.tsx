@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import SustainabilityChatbot from '../components/SustainabilityChatbot';
 import { apiService } from '../services/api';
+import { firebaseApi, DashboardData } from '../services/firebaseApi';
 
 type User = {
   id?: string | number;
@@ -597,18 +598,58 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user: initialUser, on
   const [searchQuery, setSearchQuery] = useState('');
   const [showProfile, setShowProfile] = useState(false);
   const [showCarbonFootprint, setShowCarbonFootprint] = useState(false);
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    try {
-      const sellerProducts: Product[] = JSON.parse(localStorage.getItem('cc_seller_products') || '[]');
-      if (user?.id !== undefined) {
-        setProducts(sellerProducts.filter(product => product.sellerId === user.id));
-      } else {
-        setProducts([]);
+    const loadData = async () => {
+      if (!user?.id) {
+        setLoading(false);
+        return;
       }
-    } catch {
-      setProducts([]);
-    }
+
+      setLoading(true);
+      
+      try {
+        // Load products from API (Firebase/Local Storage)
+        const sellerId = String(user.id);
+        const apiProducts = await firebaseApi.getSellerProducts(sellerId);
+        
+        // Also load from localStorage as fallback/supplement
+        const localProducts: Product[] = JSON.parse(localStorage.getItem('cc_seller_products') || '[]')
+          .filter((product: any) => String(product.sellerId) === sellerId);
+        
+        // Combine API and local products, preferring API data
+        const allProducts = [...apiProducts, ...localProducts.filter(local => 
+          !apiProducts.find(api => api.id === local.id)
+        )];
+        
+        setProducts(allProducts as Product[]);
+        
+        // Load dashboard metrics
+        const dashboardMetrics = await firebaseApi.getSellerDashboardData(sellerId);
+        setDashboardData(dashboardMetrics);
+        
+      } catch (error) {
+        console.error('Error loading seller data:', error);
+        
+        // Fallback to localStorage only
+        try {
+          const sellerProducts: Product[] = JSON.parse(localStorage.getItem('cc_seller_products') || '[]');
+          setProducts(sellerProducts.filter(product => String(product.sellerId) === String(user.id)));
+        } catch {
+          setProducts([]);
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+    
+    // Refresh data every 30 seconds
+    const interval = setInterval(loadData, 30000);
+    return () => clearInterval(interval);
   }, [user]);
 
   const filteredProducts = products.filter(product => product.name.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -624,10 +665,11 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user: initialUser, on
     }
   };
 
-  // Mock statistics
-  const totalProducts = products.length;
-  const totalSold = 25; // Mock data
-  const totalRevenue = 8450; // Mock data
+  // Real-time statistics from API or fallback to calculated values
+  const totalProducts = dashboardData?.products_listed ?? products.length;
+  const totalSold = dashboardData?.total_sold ?? 0;
+  const totalRevenue = dashboardData?.revenue_earned ?? 0;
+  const totalCO2Saved = dashboardData?.total_co2_saved ?? 0;
 
   return (
     <div className="min-h-screen bg-[#fdfaf6]">
@@ -686,23 +728,98 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user: initialUser, on
           {/* Main Content */}
           <div className="lg:col-span-3 space-y-8">
             {/* Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
               <div className="summary-card secondary">
-                <div className="text-3xl font-bold mb-2">{totalProducts}</div>
-                <div className="text-white/90">Products Listed</div>
-                <div className="text-xs text-white/70 mt-1">🎨 Your craft collection</div>
+                {loading ? (
+                  <div className="animate-pulse">
+                    <div className="h-8 bg-white/20 rounded mb-2"></div>
+                    <div className="h-4 bg-white/20 rounded mb-1"></div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="text-3xl font-bold mb-2">{totalProducts}</div>
+                    <div className="text-white/90">Products Listed</div>
+                    <div className="text-xs text-white/70 mt-1">🎨 Your craft collection</div>
+                  </>
+                )}
               </div>
 
               <div className="summary-card">
-                <div className="text-3xl font-bold mb-2">{totalSold}</div>
-                <div className="text-white/90">Total Sold</div>
-                <div className="text-xs text-white/70 mt-1">📦 Happy customers</div>
+                {loading ? (
+                  <div className="animate-pulse">
+                    <div className="h-8 bg-white/20 rounded mb-2"></div>
+                    <div className="h-4 bg-white/20 rounded mb-1"></div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="text-3xl font-bold mb-2">{totalSold}</div>
+                    <div className="text-white/90">Total Sold</div>
+                    <div className="text-xs text-white/70 mt-1">📦 Happy customers</div>
+                  </>
+                )}
               </div>
 
               <div className="summary-card tertiary">
-                <div className="text-3xl font-bold mb-2">₹{totalRevenue}</div>
-                <div className="text-white/90">Revenue Earned</div>
-                <div className="text-xs text-white/70 mt-1">💰 This month</div>
+                {loading ? (
+                  <div className="animate-pulse">
+                    <div className="h-8 bg-white/20 rounded mb-2"></div>
+                    <div className="h-4 bg-white/20 rounded mb-1"></div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="text-3xl font-bold mb-2">₹{totalRevenue}</div>
+                    <div className="text-white/90">Revenue Earned</div>
+                    <div className="text-xs text-white/70 mt-1">💰 This month</div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Environmental Impact Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="summary-card" style={{background: 'linear-gradient(135deg, #10b981, #059669)'}}>
+                {loading ? (
+                  <div className="animate-pulse">
+                    <div className="h-8 bg-white/20 rounded mb-2"></div>
+                    <div className="h-4 bg-white/20 rounded mb-1"></div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="text-3xl font-bold mb-2">{totalCO2Saved.toFixed(1)} kg</div>
+                    <div className="text-white/90">Total CO₂ Saved</div>
+                    <div className="text-xs text-white/70 mt-1">🌱 Equivalent to planting {Math.ceil(totalCO2Saved / 6.25)} trees</div>
+                  </>
+                )}
+              </div>
+
+              <div className="summary-card secondary">
+                {loading ? (
+                  <div className="animate-pulse">
+                    <div className="h-8 bg-white/20 rounded mb-2"></div>
+                    <div className="h-4 bg-white/20 rounded mb-1"></div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="text-3xl font-bold mb-2">{dashboardData?.orders_placed ?? totalSold}</div>
+                    <div className="text-white/90">Orders Placed</div>
+                    <div className="text-xs text-white/70 mt-1">📦 All delivered successfully</div>
+                  </>
+                )}
+              </div>
+
+              <div className="summary-card tertiary">
+                {loading ? (
+                  <div className="animate-pulse">
+                    <div className="h-8 bg-white/20 rounded mb-2"></div>
+                    <div className="h-4 bg-white/20 rounded mb-1"></div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="text-3xl font-bold mb-2">₹{(dashboardData?.amount_saved ?? totalRevenue * 0.15).toFixed(0)}</div>
+                    <div className="text-white/90">Amount Saved</div>
+                    <div className="text-xs text-white/70 mt-1">💰 vs. mass market products</div>
+                  </>
+                )}
               </div>
             </div>
 

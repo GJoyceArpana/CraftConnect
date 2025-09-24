@@ -274,82 +274,6 @@ const CreateProduct: React.FC<CreateProductProps> = ({ user, onNavigate, onBack 
     reader.readAsDataURL(file);
   };
 
-<<<<<<< HEAD
-  // Fetch estimate from backend
-  const fetchEstimatedPrice = async () => {
-    // Validate estimate inputs first
-    if (!estCategory) {
-      setEstimateError('Please select a category for estimate.');
-      setEstimatedPrice(null);
-      return;
-    }
-    if (!estMaterial.trim()) {
-      setEstimateError('Please enter material for estimate.');
-      setEstimatedPrice(null);
-      return;
-    }
-    const hoursNum = parseFloat(estHours);
-    if (isNaN(hoursNum) || hoursNum <= 0) {
-      setEstimateError('Please enter valid hours of work (> 0).');
-      setEstimatedPrice(null);
-      return;
-    }
-    const baseNum = parseFloat(estBasePrice);
-    if (isNaN(baseNum) || baseNum < 0) {
-      setEstimateError('Please enter a valid base price (>= 0).');
-      setEstimatedPrice(null);
-      return;
-    }
-
-    setEstimating(true);
-    setEstimateError(null);
-    setEstimatedPrice(null);
-
-    try {
-      const payload = {
-        category: estCategory,
-        material: estMaterial,
-        hours: hoursNum,
-        basePrice: baseNum
-      };
-
-      const res = await fetch(ESTIMATE_API, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || `Estimate service returned ${res.status}`);
-      }
-
-      const data = await res.json();
-      // Expecting { estimatedPrice: number } from backend
-      if (data && (typeof data.estimatedPrice === 'number' || typeof data.estimatedPrice === 'string')) {
-        const val = typeof data.estimatedPrice === 'number' ? data.estimatedPrice : parseFloat(data.estimatedPrice);
-        if (!isNaN(val)) {
-          setEstimatedPrice(Math.round(val * 100) / 100);
-        } else {
-          throw new Error('Invalid estimate value');
-        }
-      } else {
-        throw new Error('Invalid response from estimate service');
-      }
-    } catch (err: any) {
-      console.error('Estimate fetch failed', err);
-      setEstimateError(err?.message || 'Failed to fetch estimate');
-    } finally {
-      setEstimating(false);
-    }
-  };
-
-  // Use estimate as the final product price (copies into form)
-  const applyEstimateAsPrice = () => {
-    if (estimatedPrice === null) return;
-    setFormData(prev => ({ ...prev, price: String(estimatedPrice) }));
-  };
-
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
@@ -409,23 +333,53 @@ const CreateProduct: React.FC<CreateProductProps> = ({ user, onNavigate, onBack 
       image: formData.productImage ?? 'https://images.pexels.com/photos/6474306/pexels-photo-6474306.jpeg?auto=compress&cs=tinysrgb&w=400'
     };
 
-    // Save to localStorage (defensive)
+    // Save to Firebase via backend API
     try {
-      const raw = localStorage.getItem('cc_seller_products') || '[]';
-      const existingProducts = Array.isArray(JSON.parse(raw)) ? (JSON.parse(raw) as any[]) : [];
-      localStorage.setItem('cc_seller_products', JSON.stringify([...existingProducts, productData]));
-    } catch (err) {
+      const response = await fetch('http://127.0.0.1:5000/api/products', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(productData),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success) {
+          // Also save to localStorage for offline access
+          try {
+            const raw = localStorage.getItem('cc_seller_products') || '[]';
+            const existingProducts = Array.isArray(JSON.parse(raw)) ? (JSON.parse(raw) as any[]) : [];
+            localStorage.setItem('cc_seller_products', JSON.stringify([...existingProducts, { ...productData, id: result.product_id }]));
+          } catch (err) {
+            console.warn('Failed to save to localStorage, but product saved to database:', err);
+          }
+          
+          alert('Product created successfully! 🎉\nNow available on the marketplace!');
+          onNavigate('seller-dashboard');
+        } else {
+          throw new Error(result.message || 'Failed to create product');
+        }
+      } else {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(errorData.error || 'Failed to create product');
+      }
+    } catch (err: any) {
+      console.error('Failed to save product to database:', err);
+      
+      // Fallback to localStorage only
       try {
-        localStorage.setItem('cc_seller_products', JSON.stringify([productData]));
-      } catch {
-        console.error('Failed to save product in localStorage', err);
+        const raw = localStorage.getItem('cc_seller_products') || '[]';
+        const existingProducts = Array.isArray(JSON.parse(raw)) ? (JSON.parse(raw) as any[]) : [];
+        localStorage.setItem('cc_seller_products', JSON.stringify([...existingProducts, productData]));
+        alert('Product saved locally! ⚠️\nPlease check your internet connection.\nProduct will sync when connection is restored.');
+        onNavigate('seller-dashboard');
+      } catch (localErr) {
+        console.error('Failed to save product both remotely and locally:', localErr);
         alert('Failed to save product. Please try again.');
         return;
       }
     }
-
-    alert('Product created successfully! 🎉');
-    onNavigate('seller-dashboard');
   };
 
   return (
