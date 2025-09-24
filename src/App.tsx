@@ -22,6 +22,7 @@ import SellerSetPassword from './seller/SetPassword';
 import SellerSetupProfile from './seller/SetupProfile';
 import SellerDashboard from './seller/SellerDashboard';
 import CreateProduct from './seller/CreateProduct';
+import { Products } from './components/Products';
 
 import './buyer.css';
 import './home-hero.css';
@@ -206,6 +207,8 @@ function App() {
         return <SellerDashboard user={currentUser} onNavigate={navigateTo} onLogout={logout} />;
       case 'seller-create':
         return <CreateProduct user={currentUser} onNavigate={navigateTo} onBack={navigateBack} />;
+      case 'products':
+        return <Products onNavigate={navigateTo} />;
 
       default:
         return <Home onNavigate={navigateTo} />;

@@ -67,16 +67,30 @@ def clean_expired_otps():
         del otp_storage[key]
 
 # JSON file paths
-ECO_DATA_FILE = os.path.join(os.path.dirname(__file__), "..", "tests", "sample_data.json")
+DATA_FILE = os.path.join(os.path.dirname(__file__), "..", "tests", "sample_data.json")
 
 # Create directories if they don't exist
-os.makedirs(os.path.dirname(ECO_DATA_FILE), exist_ok=True)
+os.makedirs(os.path.dirname(DATA_FILE), exist_ok=True)
 
-# --- Price Service Routes (Placeholder for future implementation) ---
+# --- Load and Save Products ---
+
+def load_products():
+    """Load products from data file"""
+    if os.path.exists(DATA_FILE):
+        with open(DATA_FILE) as f:
+            return json.load(f)
+    return []
+
+def save_products(products):
+    """Save products to data file"""
+    with open(DATA_FILE, "w") as f:
+        json.dump(products, f, indent=2)
+
+# --- Price Service Routes ---
 
 @app.route("/suggest_price", methods=["POST"])
 def suggest_price_api():
-    """Suggest fair price for a product - placeholder"""
+    """Suggest fair price for a product"""
     try:
         data = request.get_json()
         # Simple price suggestion based on category and materials
@@ -131,8 +145,6 @@ def send_otp():
         # Use Twilio Verify API with 4-digit OTP
         if twilio_client and TWILIO_VERIFY_SID:
             try:
-                # First, let's try using Twilio Verify with default settings
-                # and see if we can customize the code length
                 verification = twilio_client.verify.v2.services(TWILIO_VERIFY_SID).verifications.create(
                     to=formatted_phone,
                     channel='sms'
@@ -252,26 +264,14 @@ def verify_otp():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# --- Carbon Footprint Routes ---
-
-def load_products():
-    """Load products from eco data file"""
-    if os.path.exists(ECO_DATA_FILE):
-        with open(ECO_DATA_FILE) as f:
-            return json.load(f)
-    return []
-
-def save_products(products):
-    """Save products to eco data file"""
-    with open(ECO_DATA_FILE, "w") as f:
-        json.dump(products, f, indent=2)
+# --- Main Routes ---
 
 @app.route("/", methods=["GET"])
 def home():
     """API home endpoint"""
     return jsonify({
         "message": "CraftConnect Unified API is running 🚀", 
-        "endpoints": ["/suggest_price", "/save_price", "/products", "/predict", "/carbon_footprint", "/send-otp", "/verify-otp"]
+        "endpoints": ["/suggest_price", "/products", "/predict", "/carbon_footprint", "/send-otp", "/verify-otp"]
     })
 
 @app.route("/products", methods=["GET"])

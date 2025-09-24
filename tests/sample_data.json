@@ -3,8 +3,8 @@
     "name": "Handwoven Cotton Scarf",
     "category": "textiles",
     "weight_g": 120,
-    "materials": "cotton",
-    "percent_recycled_material": 10,
+    "materials": "organic cotton",
+    "percent_recycled_material": 15,
     "production_method": "handmade",
     "distance_km_to_market": 40,
     "packaging_weight_g": 30
@@ -13,7 +13,7 @@
     "name": "Madhubani Painting",
     "category": "painting",
     "weight_g": 200,
-    "materials": "handmade paper",
+    "materials": "handmade paper, natural dyes",
     "percent_recycled_material": 60,
     "production_method": "handmade",
     "distance_km_to_market": 150,
@@ -23,7 +23,7 @@
     "name": "Channapatna Toy Car",
     "category": "toys",
     "weight_g": 250,
-    "materials": "wood",
+    "materials": "sustainable wood, natural lacquer",
     "percent_recycled_material": 20,
     "production_method": "handmade",
     "distance_km_to_market": 80,
@@ -33,10 +33,30 @@
     "name": "Kinhal Wooden Doll",
     "category": "toys",
     "weight_g": 400,
-    "materials": "wood",
+    "materials": "rosewood, natural colors",
     "percent_recycled_material": 10,
     "production_method": "handmade",
     "distance_km_to_market": 110,
     "packaging_weight_g": 50
+  },
+  {
+    "name": "Blue Pottery Bowl",
+    "category": "terracotta",
+    "weight_g": 350,
+    "materials": "natural clay, mineral glazes",
+    "percent_recycled_material": 30,
+    "production_method": "handmade",
+    "distance_km_to_market": 90,
+    "packaging_weight_g": 45
+  },
+  {
+    "name": "Bamboo Water Bottle",
+    "category": "bamboo",
+    "weight_g": 180,
+    "materials": "bamboo fiber, natural coating",
+    "percent_recycled_material": 85,
+    "production_method": "handmade",
+    "distance_km_to_market": 30,
+    "packaging_weight_g": 15
   }
 ]
