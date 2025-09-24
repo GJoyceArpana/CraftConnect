@@ -1,32 +1,37 @@
 // src/App.tsx
-import { useState, useEffect } from 'react';
-import Home from './Home';
+import { useState, useEffect, Suspense, lazy } from 'react';
+
+// Immediately needed components and services
 import { UserService } from './firebase/userService';
-import './firebase/adminUtils'; // Make AdminUtils available in console
-import './resetAccount'; // Make reset function available
-import './firebase/passwordReset'; // Make PasswordResetService available
-import './firebase/testConnection'; // Make Firebase test available
-import './firebase/test'; // Make Firebase connection test available
-
-// Buyer components
-import BuyerLogin from './buyer/Login';
-import BuyerOtp from './buyer/Otp';
-import BuyerSetPassword from './buyer/SetPassword';
-import BuyerSetupProfile from './buyer/SetupProfile';
-import BuyerDashboard from './buyer/Dashboard';
-import BuyerCart from './buyer/Cart';
-
-// Seller components
-import SellerLogin from './seller/Login';
-import SellerOtp from './seller/Otp';
-import SellerSetPassword from './seller/SetPassword';
-import SellerSetupProfile from './seller/SetupProfile';
-import SellerDashboard from './seller/SellerDashboard';
-import CreateProduct from './seller/CreateProduct';
-import { Products } from './components/Products';
-
+import './utils/lazyInit'; // Initialize development services lazily
 import './buyer.css';
 import './home-hero.css';
+
+// Loading component
+const LoadingSpinner = () => (
+  <div className="min-h-screen bg-[#fdfaf6] flex items-center justify-center">
+    <div className="text-center">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#d67a4a] mx-auto mb-4"></div>
+      <p className="text-[#666]">Loading...</p>
+    </div>
+  </div>
+);
+
+// Lazy load all route components
+const Home = lazy(() => import('./Home'));
+const BuyerLogin = lazy(() => import('./buyer/Login'));
+const BuyerOtp = lazy(() => import('./buyer/Otp'));
+const BuyerSetPassword = lazy(() => import('./buyer/SetPassword'));
+const BuyerSetupProfile = lazy(() => import('./buyer/SetupProfile'));
+const BuyerDashboard = lazy(() => import('./buyer/Dashboard'));
+const BuyerCart = lazy(() => import('./buyer/Cart'));
+const SellerLogin = lazy(() => import('./seller/Login'));
+const SellerOtp = lazy(() => import('./seller/Otp'));
+const SellerSetPassword = lazy(() => import('./seller/SetPassword'));
+const SellerSetupProfile = lazy(() => import('./seller/SetupProfile'));
+const SellerDashboard = lazy(() => import('./seller/SellerDashboard'));
+const CreateProduct = lazy(() => import('./seller/CreateProduct'));
+const Products = lazy(() => import('./components/Products').then(module => ({ default: module.Products })));
 
 /* ----- Temp data types ----- */
 type BuyerTempData = {
@@ -216,7 +221,13 @@ function App() {
     }
   };
 
-  return <div className="min-h-screen bg-[#fdfaf6]">{renderCurrentRoute()}</div>;
+  return (
+    <div className="min-h-screen bg-[#fdfaf6]">
+      <Suspense fallback={<LoadingSpinner />}>
+        {renderCurrentRoute()}
+      </Suspense>
+    </div>
+  );
 }
 
 export default App;

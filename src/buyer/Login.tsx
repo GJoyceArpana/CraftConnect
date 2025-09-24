@@ -40,34 +40,42 @@ const BuyerLogin: React.FC<BuyerLoginProps> = ({ onNavigate, onBack }) => {
         await UserService.createBuyer({ phone, isComplete: false });
         console.log('Buyer record created successfully');
 
-        // Send OTP
-        console.log('Sending OTP to:', phone);
+        // Send OTP with enhanced error handling
+        const normalizedPhone = phone.replace(/\D/g, ''); // Remove all non-digits
+        console.log('📞 Sending OTP to:', normalizedPhone);
+        console.log('📡 API URL:', 'http://127.0.0.1:5000/send-otp');
+        
         const response = await fetch('http://127.0.0.1:5000/send-otp', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ phone: phone }),
+          body: JSON.stringify({ phone: normalizedPhone }),
         });
 
+        console.log('🌐 Response status:', response.status);
+        console.log('🌐 Response headers:', Object.fromEntries(response.headers.entries()));
+        
         const data = await response.json();
-        console.log('OTP response:', data);
+        console.log('📨 OTP API Response:', data);
 
         if (data.success) {
           // OTP sent successfully, navigate to OTP screen
-          console.log('OTP sent successfully, navigating to OTP screen');
+          console.log('✅ OTP sent successfully, navigating to OTP screen');
           
-        // Show password reset OTP notification
-        if (data.dev_otp) {
-          alert(`🔧 DEV MODE: Your 4-digit password reset OTP is ${data.dev_otp}`);
-          console.log('🔧 DEV MODE - 4-digit Password Reset OTP:', data.dev_otp);
-        } else {
-          alert('📱 4-digit password reset OTP sent to your phone!');
-        }
+          // Show OTP notification with clear instructions
+          if (data.dev_otp) {
+            console.log('🔧 DEV MODE - 4-digit OTP:', data.dev_otp);
+            alert(`🔧 DEV MODE\n\nYour 4-digit OTP: ${data.dev_otp}\n\nPhone: ${data.message.includes('+91') ? data.message.split(' ')[4] : normalizedPhone}\n\nThis OTP will expire in 5 minutes.`);
+          } else {
+            alert(`📱 4-digit OTP sent to your phone!\n\nPhone: +91${normalizedPhone}\n\nCheck your SMS messages.`);
+          }
           
-          onNavigate('buyer-otp', { phone, isSignUp: true });
+          // Pass normalized phone to OTP screen
+          onNavigate('buyer-otp', { phone: normalizedPhone, isSignUp: true });
         } else {
-          alert(data.error || 'Failed to send OTP. Please try again.');
+          console.error('❌ OTP send failed:', data);
+          alert(`Failed to send OTP: ${data.error || 'Unknown error'}\n\nPlease check your phone number and try again.`);
         }
       } catch (error) {
         console.error('Error in signup:', error);

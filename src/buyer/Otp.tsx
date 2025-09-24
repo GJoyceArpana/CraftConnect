@@ -33,7 +33,19 @@ const BuyerOtp: React.FC<BuyerOtpProps> = ({ onNavigate, onBack, tempData = {} }
     e.preventDefault();
     setIsVerifying(true);
 
+    // Validate OTP format
+    if (otp.length !== 4) {
+      alert('Please enter a 4-digit OTP');
+      setIsVerifying(false);
+      return;
+    }
+
     try {
+      console.log('🔐 Verifying OTP...');
+      console.log('📞 Phone:', tempData.phone);
+      console.log('🔢 OTP:', otp);
+      console.log('📡 API URL:', 'http://127.0.0.1:5000/verify-otp');
+      
       const response = await fetch('http://127.0.0.1:5000/verify-otp', {
         method: 'POST',
         headers: {
@@ -45,23 +57,36 @@ const BuyerOtp: React.FC<BuyerOtpProps> = ({ onNavigate, onBack, tempData = {} }
         }),
       });
 
+      console.log('🌐 Verify Response status:', response.status);
       const data = await response.json();
+      console.log('📨 Verify API Response:', data);
 
       if (data.success) {
+        console.log('✅ OTP verified successfully!');
         // OTP verified successfully
         if (tempData.isSignUp) {
+          console.log('🚀 Navigating to set password for signup');
           // For signup, go to set password
           onNavigate('buyer-setpassword', tempData);
         } else {
+          console.log('🚀 Navigating to dashboard for login');
           // For existing user login via OTP, go to dashboard
           onNavigate('buyer-dashboard');
         }
       } else {
-        alert(data.error || 'Invalid OTP. Please try again.');
+        console.error('❌ OTP verification failed:', data);
+        const errorMsg = data.error || 'Invalid OTP. Please try again.';
+        const remainingAttempts = data.attempts_remaining;
+        
+        if (remainingAttempts !== undefined) {
+          alert(`${errorMsg}\n\nAttempts remaining: ${remainingAttempts}`);
+        } else {
+          alert(errorMsg);
+        }
       }
     } catch (error) {
-      console.error('Error verifying OTP:', error);
-      alert('Network error. Please check your connection and try again.');
+      console.error('🚨 Network error verifying OTP:', error);
+      alert('Network error. Please check your connection and try again.\n\nMake sure the backend server is running.');
     } finally {
       setIsVerifying(false);
     }
@@ -72,6 +97,8 @@ const BuyerOtp: React.FC<BuyerOtpProps> = ({ onNavigate, onBack, tempData = {} }
     setIsResending(true);
     
     try {
+      console.log('🔄 Resending OTP to:', tempData.phone);
+      
       const response = await fetch('http://127.0.0.1:5000/send-otp', {
         method: 'POST',
         headers: {
@@ -80,17 +107,27 @@ const BuyerOtp: React.FC<BuyerOtpProps> = ({ onNavigate, onBack, tempData = {} }
         body: JSON.stringify({ phone: tempData.phone }),
       });
 
+      console.log('🌐 Resend Response status:', response.status);
       const data = await response.json();
+      console.log('📨 Resend API Response:', data);
 
       if (data.success) {
         setTimer(30);
-        alert(`OTP resent to ${tempData.phone}`);
+        console.log('✅ OTP resent successfully');
+        
+        if (data.dev_otp) {
+          console.log('🔧 DEV MODE - New 4-digit OTP:', data.dev_otp);
+          alert(`🔄 OTP Resent!\n\n🔧 DEV MODE\nNew 4-digit OTP: ${data.dev_otp}\n\nPhone: ${tempData.phone}\n\nExpires in 5 minutes.`);
+        } else {
+          alert(`📱 OTP resent to ${tempData.phone}\n\nCheck your SMS messages.`);
+        }
       } else {
-        alert(data.error || 'Failed to resend OTP. Please try again.');
+        console.error('❌ Resend failed:', data);
+        alert(`Failed to resend OTP: ${data.error || 'Unknown error'}\n\nPlease try again later.`);
       }
     } catch (error) {
-      console.error('Error resending OTP:', error);
-      alert('Network error. Please check your connection and try again.');
+      console.error('🚨 Network error resending OTP:', error);
+      alert('Network error. Please check your connection and try again.\n\nMake sure the backend server is running.');
     } finally {
       setIsResending(false);
     }

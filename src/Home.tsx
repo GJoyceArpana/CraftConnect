@@ -1,22 +1,48 @@
 // src/Home.tsx
 import type { FC } from 'react';
+import { useState, useEffect } from 'react';
+import OtpDiagnostic from './components/OtpDiagnostic';
 import './home-hero.css';
 
-import img1 from './assets/images/img1.jpg';
-import img2 from './assets/images/img2.jpg';
-import img3 from './assets/images/img3.jpg';
-import img4 from './assets/images/img4.jpg';
-import img5 from './assets/images/img5.jpg';
+// Lazy load images to reduce initial bundle size
+const imageModules = {
+  img1: () => import('./assets/images/img1.jpg'),
+  img2: () => import('./assets/images/img2.jpg'),
+  img3: () => import('./assets/images/img3.jpg'),
+  img4: () => import('./assets/images/img4.jpg'),
+  img5: () => import('./assets/images/img5.jpg'),
+};
 
 type HomeProps = {
   onNavigate: (path: string) => void;
 };
 
 const Home: FC<HomeProps> = ({ onNavigate }) => {
-  const images = [img1, img2, img3, img4, img5];
+  const [images, setImages] = useState<string[]>([]);
+  const [imagesLoaded, setImagesLoaded] = useState(false);
+
+  useEffect(() => {
+    // Load images lazily after component mounts
+    const loadImages = async () => {
+      try {
+        const imagePromises = Object.values(imageModules).map(loader => loader());
+        const loadedImages = await Promise.all(imagePromises);
+        setImages(loadedImages.map(img => img.default));
+        setImagesLoaded(true);
+      } catch (error) {
+        console.error('Failed to load images:', error);
+      }
+    };
+
+    // Delay image loading to prioritize initial render
+    const timer = setTimeout(loadImages, 100);
+    return () => clearTimeout(timer);
+  }, []);
 
   return (
     <div className="hero-bg min-h-screen flex flex-col items-center justify-center px-4 jute-pattern">
+      {/* OTP Diagnostic Tool - Only in development */}
+      {process.env.NODE_ENV === 'development' && <OtpDiagnostic />}
       {/* Floating decoration cards (kept from your original design) */}
       <div className="floating-card top-20 left-10 bg-white/10 backdrop-blur-sm rounded-lg p-4 hidden lg:block">
         <div className="text-2xl">🌱</div>
@@ -44,11 +70,20 @@ const Home: FC<HomeProps> = ({ onNavigate }) => {
         {/* Image marquee: duplicate images for seamless loop */}
         <div className="image-marquee-wrapper mb-8" aria-hidden>
           <div className="image-track">
-            {images.concat(images).map((src, idx) => (
-              <div className="image-card" key={idx}>
-                <img src={src} alt={`craft-${idx}`} loading="lazy" />
-              </div>
-            ))}
+            {imagesLoaded ? (
+              images.concat(images).map((src, idx) => (
+                <div className="image-card" key={idx}>
+                  <img src={src} alt={`craft-${idx}`} loading="lazy" />
+                </div>
+              ))
+            ) : (
+              // Placeholder while images load
+              Array.from({ length: 10 }).map((_, idx) => (
+                <div className="image-card" key={idx}>
+                  <div className="bg-gray-200 animate-pulse w-full h-full rounded"></div>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
