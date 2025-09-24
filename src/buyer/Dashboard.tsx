@@ -2,6 +2,14 @@
 import { useState } from 'react';
 import type { FC } from 'react';
 
+// -------- Image imports (using existing images in src/assets/images) --------
+// Make sure this path is correct for your project layout. If this file is in src/buyer,
+// change to: import img2 from '../../assets/images/img2.jpg'; etc.
+import img2 from '../assets/images/img2.jpg'; // Handwoven Cotton Shawl (textiles)
+import img3 from '../assets/images/img3.jpg'; // Bamboo Basket (bamboo)
+import img4 from '../assets/images/img4.jpg'; // Jute Bags (jute)
+import img5 from '../assets/images/img5.jpg'; // Terracotta Pots (terracotta)
+
 type Product = {
   id: number;
   name: string;
@@ -20,7 +28,7 @@ type User = {
   phone?: string;
   profileImage?: string;
   email?: string;
-  address?: string; // <-- added address
+  address?: string;
 };
 
 type BuyerDashboardProps = {
@@ -125,7 +133,7 @@ const BuyerDashboard: FC<BuyerDashboardProps> = ({ user: initialUser, onNavigate
     }
   });
 
-  // Mock data
+  // Mock categories
   const categories = [
     { id: 'all', name: 'All Products', icon: '🛍️' },
     { id: 'terracotta', name: 'Terracotta', icon: '🏺' },
@@ -134,62 +142,46 @@ const BuyerDashboard: FC<BuyerDashboardProps> = ({ user: initialUser, onNavigate
     { id: 'bamboo', name: 'Bamboo & Wood', icon: '🎋' }
   ];
 
+  // ---------- Use only the four provided images/products ----------
   const mockProducts: Product[] = [
     {
-      id: 1,
-      name: 'Handcrafted Terracotta Vase',
-      description: 'Beautiful handmade terracotta vase with intricate designs',
-      price: 899,
-      co2Saved: 2.5,
-      category: 'terracotta',
-      image: 'https://images.pexels.com/photos/6474306/pexels-photo-6474306.jpeg?auto=compress&cs=tinysrgb&w=400'
+      id: 2,
+      name: 'Handwoven Cotton Shawl',
+      description: 'Soft handwoven cotton shawl with traditional patterns',
+      price: 1299,
+      co2Saved: 3.8,
+      category: 'textiles',
+      image: img2
     },
     {
-      id: 2,
-      name: 'Organic Jute Shopping Bag',
+      id: 3,
+      name: 'Bamboo Storage Basket',
+      description: 'Handmade bamboo basket — lightweight and durable.',
+      price: 699,
+      co2Saved: 2.1,
+      category: 'bamboo',
+      image: img3
+    },
+    {
+      id: 4,
+      name: 'Jute Shopping Bag',
       description: 'Eco-friendly jute bag perfect for daily shopping',
       price: 299,
       co2Saved: 1.2,
       category: 'jute',
-      image: 'https://images.pexels.com/photos/7262772/pexels-photo-7262772.jpeg?auto=compress&cs=tinysrgb&w=400'
-    },
-    {
-      id: 3,
-      name: 'Handwoven Cotton Throw',
-      description: 'Soft handwoven cotton throw with traditional patterns',
-      price: 1299,
-      co2Saved: 3.8,
-      category: 'textiles',
-      image: 'https://images.pexels.com/photos/6969998/pexels-photo-6969998.jpeg?auto=compress&cs=tinysrgb&w=400'
-    },
-    {
-      id: 4,
-      name: 'Bamboo Kitchen Set',
-      description: 'Complete bamboo kitchen utensils set',
-      price: 699,
-      co2Saved: 2.1,
-      category: 'bamboo',
-      image: 'https://images.pexels.com/photos/6633920/pexels-photo-6633920.jpeg?auto=compress&cs=tinysrgb&w=400'
+      image: img4
     },
     {
       id: 5,
-      name: 'Traditional Clay Water Pot',
-      description: 'Naturally cooling clay water pot with lid',
-      price: 450,
-      co2Saved: 1.8,
+      name: 'Terracotta Serving Pots',
+      description: 'Set of handcrafted terracotta pots with earthy finish.',
+      price: 899,
+      co2Saved: 2.5,
       category: 'terracotta',
-      image: 'https://images.pexels.com/photos/5738076/pexels-photo-5738076.jpeg?auto=compress&cs=tinysrgb&w=400'
-    },
-    {
-      id: 6,
-      name: 'Handmade Jute Coasters',
-      description: 'Set of 6 decorative jute coasters',
-      price: 199,
-      co2Saved: 0.8,
-      category: 'jute',
-      image: 'https://images.pexels.com/photos/6195124/pexels-photo-6195124.jpeg?auto=compress&cs=tinysrgb&w=400'
+      image: img5
     }
   ];
+  // ----------------------------------------------------------------
 
   const filteredProducts = mockProducts.filter(product => {
     const matchesCategory = selectedCategory === 'all' || product.category === selectedCategory;
