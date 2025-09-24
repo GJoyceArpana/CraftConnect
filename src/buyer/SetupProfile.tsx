@@ -107,6 +107,19 @@ const BuyerSetupProfile: React.FC<BuyerSetupProfileProps> = ({
           id: userId
         };
 
+        // Store in localStorage for session persistence
+        try {
+          localStorage.setItem('cc_buyer', JSON.stringify({
+            ...userData,
+            phone: tempData.phone,
+            isComplete: true,
+            type: 'buyer'
+          }));
+          console.log('Buyer profile saved to localStorage');
+        } catch (err) {
+          console.error('Failed to save to localStorage:', err);
+        }
+
         // Update app state if callback exists
         try {
           if (typeof onUpdateUser === 'function') onUpdateUser(userData);
@@ -114,7 +127,7 @@ const BuyerSetupProfile: React.FC<BuyerSetupProfileProps> = ({
           console.error('onUpdateUser callback threw', err);
         }
 
-        onNavigate('buyer-dashboard');
+        onNavigate('buyer-dashboard', userData);
       } else {
         alert('Error: Phone number not found. Please start over.');
       }

@@ -12,7 +12,7 @@ export class PasswordResetService {
       }
 
       // Send OTP via backend
-      const response = await fetch('http://localhost:5000/send-otp', {
+      const response = await fetch('http://127.0.0.1:5000/send-otp', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -37,7 +37,7 @@ export class PasswordResetService {
   static async resetPasswordWithOTP(phone: string, otp: string, newPassword: string, userType: 'buyer' | 'seller'): Promise<boolean> {
     try {
       // First verify the OTP
-      const verifyResponse = await fetch('http://localhost:5000/verify-otp', {
+      const verifyResponse = await fetch('http://127.0.0.1:5000/verify-otp', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

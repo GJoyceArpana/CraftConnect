@@ -42,12 +42,12 @@ const BuyerLogin: React.FC<BuyerLoginProps> = ({ onNavigate, onBack }) => {
 
         // Send OTP
         console.log('Sending OTP to:', phone);
-        const response = await fetch('http://localhost:5000/send-otp', {
+        const response = await fetch('http://127.0.0.1:5000/send-otp', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ phone }),
+          body: JSON.stringify({ phone: phone }),
         });
 
         const data = await response.json();
@@ -100,7 +100,7 @@ const BuyerLogin: React.FC<BuyerLoginProps> = ({ onNavigate, onBack }) => {
     
     setIsLoading(true);
     try {
-      await PasswordResetService.initiatePasswordReset(phone, 'buyer');
+      throw new Error('Password reset temporarily unavailable');
       setShowForgotPassword(true);
       setResetStep('otp');
       alert('OTP sent to your phone for password reset.');
@@ -124,7 +124,7 @@ const BuyerLogin: React.FC<BuyerLoginProps> = ({ onNavigate, onBack }) => {
     
     setIsLoading(true);
     try {
-      await PasswordResetService.resetPasswordWithOTP(phone, otp, newPassword, 'buyer');
+      throw new Error('Password reset temporarily unavailable');
       alert('Password reset successful! You can now login with your new password.');
       setShowForgotPassword(false);
       setResetStep('phone');
@@ -199,7 +199,7 @@ const BuyerLogin: React.FC<BuyerLoginProps> = ({ onNavigate, onBack }) => {
           <div className="space-y-6">
             <div className="text-center mb-4">
               <h3 className="text-lg font-semibold text-[#154731]">Reset Password</h3>
-              <p className="text-sm text-[#666]">Phone: {phone}</p>
+              <p className="text-sm text-[#666]">phone: {phone}</p>
             </div>
             
             {resetStep === 'otp' && (

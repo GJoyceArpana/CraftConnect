@@ -34,7 +34,7 @@ const BuyerOtp: React.FC<BuyerOtpProps> = ({ onNavigate, onBack, tempData = {} }
     setIsVerifying(true);
 
     try {
-      const response = await fetch('http://localhost:5000/verify-otp', {
+      const response = await fetch('http://127.0.0.1:5000/verify-otp', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -72,7 +72,7 @@ const BuyerOtp: React.FC<BuyerOtpProps> = ({ onNavigate, onBack, tempData = {} }
     setIsResending(true);
     
     try {
-      const response = await fetch('http://localhost:5000/send-otp', {
+      const response = await fetch('http://127.0.0.1:5000/send-otp', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
