@@ -8,6 +8,14 @@ from flask_cors import CORS
 from twilio.rest import Client
 from estimator import estimate_eco_impact
 
+# Load environment variables
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+    print("Environment variables loaded from .env file")
+except ImportError:
+    print("python-dotenv not installed, using system environment variables")
+
 app = Flask(__name__)
 CORS(app)  # Enable CORS for frontend integration
 
