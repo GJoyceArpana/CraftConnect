@@ -15,21 +15,41 @@ def estimate_eco_impact(product):
     # Category multipliers
     factors = category_factors.get(product["category"], {"factory": 3.0, "handmade_mult": 0.8})
 
-    # Factory CO₂
-    factory_co2 = (weight_kg + packaging_kg) * factors["factory"] + (0.001 * distance_km)
+    # Enhanced CO₂ calculation with more weight on distance and production method
+    base_material_impact = (weight_kg + packaging_kg) * factors["factory"]
+    transport_impact = 0.01 * distance_km  # Increased transport impact
+    
+    # Factory CO₂ (higher base impact)
+    factory_co2 = base_material_impact + transport_impact
 
-    # Artisan CO₂
-    artisan_co2 = (weight_kg + packaging_kg) * (factors["factory"] * factors["handmade_mult"]) + (0.001 * distance_km * 0.5)
-
+    # Artisan/sustainable CO₂ (varies more by production method)
+    production_multiplier = {
+        "handmade": factors["handmade_mult"],
+        "small-batch": 0.7,  # Between handmade and factory
+        "factory": 1.0
+    }.get(product["production_method"], 0.8)
+    
+    artisan_co2 = (base_material_impact * production_multiplier) + (transport_impact * 0.3)
     co2_saving = max(factory_co2 - artisan_co2, 0)
 
-    # Waste reduction %
-    waste_reduction_pct = product["percent_recycled_material"] * 0.5
+    # Enhanced sustainability score calculation
+    base_sustainability = product["percent_recycled_material"] * 0.4  # Recycled materials impact
+    
+    # Production method bonus (more significant differences)
     if product["production_method"] == "handmade":
-        waste_reduction_pct += 20
+        method_bonus = 35
     elif product["production_method"] == "small-batch":
-        waste_reduction_pct += 10
+        method_bonus = 20
+    else:
+        method_bonus = 0
+    
+    # Distance penalty (longer distances = less sustainable)
+    distance_penalty = min(distance_km * 0.05, 25)  # Max 25% penalty
+    
+    # Weight penalty (heavier items = less sustainable)
+    weight_penalty = min((weight_kg + packaging_kg) * 8, 15)  # Max 15% penalty
+    
+    sustainability_score = base_sustainability + method_bonus - distance_penalty - weight_penalty
+    sustainability_score = max(0, min(sustainability_score, 95))  # Cap between 0-95%
 
-    waste_reduction_pct = min(waste_reduction_pct, 90)
-
-    return round(co2_saving, 2), round(waste_reduction_pct, 1)
+    return round(co2_saving, 2), round(sustainability_score, 1)

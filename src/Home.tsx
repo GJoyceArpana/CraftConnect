@@ -57,7 +57,11 @@ const Home: FC<HomeProps> = ({ onNavigate }) => {
           with Indian artisans — see product CO₂ impact and pay makers directly.
         </p>
 
-        <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
+        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+          <button className="hero-button w-full sm:w-auto" onClick={() => onNavigate('products')}>
+            <span className="relative z-10">🌿 View Products & Eco Impact</span>
+          </button>
+          
           <button className="hero-button w-full sm:w-auto" onClick={() => onNavigate('buyer-login')}>
             <span className="relative z-10">🛒 Start Buying</span>
           </button>
