@@ -19,6 +19,8 @@ const LoadingSpinner = () => (
 
 // Lazy load all route components
 const Home = lazy(() => import('./Home'));
+const AboutUs = lazy(() => import('./AboutUs'));
+const Footer = lazy(() => import('./Footer'));
 const BuyerLogin = lazy(() => import('./buyer/Login'));
 const BuyerOtp = lazy(() => import('./buyer/Otp'));
 const BuyerSetPassword = lazy(() => import('./buyer/SetPassword'));
@@ -184,6 +186,8 @@ function App() {
     switch (route) {
       case 'home':
         return <Home onNavigate={navigateTo} />;
+      case 'about-us':
+        return <AboutUs onNavigate={navigateTo} />;
 
       // Buyer routes
       case 'buyer-login':
@@ -222,9 +226,14 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#fdfaf6]">
-      <Suspense fallback={<LoadingSpinner />}>
-        {renderCurrentRoute()}
+    <div className="min-h-screen bg-[#fdfaf6] flex flex-col">
+      <div className="flex-1">
+        <Suspense fallback={<LoadingSpinner />}>
+          {renderCurrentRoute()}
+        </Suspense>
+      </div>
+      <Suspense fallback={<div className="h-24 bg-gray-100 animate-pulse"></div>}>
+        <Footer onNavigate={navigateTo} />
       </Suspense>
     </div>
   );

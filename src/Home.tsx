@@ -95,13 +95,17 @@ const Home: FC<HomeProps> = ({ onNavigate }) => {
           <button className="hero-button w-full sm:w-auto" onClick={() => onNavigate('products')}>
             <span className="relative z-10">🌿 View Products & Eco Impact</span>
           </button>
-          
+
           <button className="hero-button w-full sm:w-auto" onClick={() => onNavigate('buyer-login')}>
             <span className="relative z-10">🛒 Start Buying</span>
           </button>
 
           <button className="hero-button secondary w-full sm:w-auto" onClick={() => onNavigate('seller-login')}>
             <span className="relative z-10">🎨 Start Selling</span>
+          </button>
+
+          <button className="hero-button outline w-full sm:w-auto" onClick={() => onNavigate('about-us')}>
+            <span className="relative z-10">ℹ️ About Us</span>
           </button>
         </div>
       </div>
