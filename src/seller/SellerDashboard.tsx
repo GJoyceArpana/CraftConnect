@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import SustainabilityChatbot from '../components/SustainabilityChatbot';
 import { apiService } from '../services/api';
-import { firebaseApi, DashboardData, Product as ApiProduct } from '../services/firebaseApi'; // Updated imports
+import { firebaseApi, DashboardData } from '../services/firebaseApi'; // Updated imports
 
 type User = {
   id?: string | number;
@@ -15,13 +15,19 @@ type User = {
 };
 
 type Product = {
-  id: number;
+  id: number | string;
   name: string;
   description: string;
   price: number;
   image?: string;
   sellerId?: string | number;
   co2Prediction?: number;
+  isPlaceholder?: boolean;
+};
+
+type CarbonHistoryItem = {
+  sellerId?: string | number;
+  carbonSaved?: number;
 };
 
 type SellerDashboardProps = {
@@ -56,11 +62,10 @@ const CarbonFootprintModal: React.FC<{
     try {
       const userImpact = JSON.parse(localStorage.getItem(`cc_user_impact_${user?.id}`) || '{}');
       const carbonHistory = JSON.parse(localStorage.getItem('cc_carbon_history') || '[]')
-        .filter((item: any) => item.sellerId === user?.id);
-      
-      const totalCO2Saved = userImpact.totalCO2Saved || carbonHistory.reduce((sum: number, item: any) => sum + (item.carbonSaved || 0), 0) || 12.5;
-      const treesEquivalent = Math.round(totalCO2Saved / 6.25); // 1 tree absorbs ~6.25kg CO2/year
-      const wasteReduced = totalCO2Saved * 1.2; // Estimate waste reduction
+        .filter((item: CarbonHistoryItem) => item.sellerId === user?.id);
+
+      const treesEquivalent = Math.round((userImpact.totalCO2Saved || carbonHistory.reduce((sum: number, item: CarbonHistoryItem) => sum + (item.carbonSaved || 0), 0) || 12.5) / 6.25); // 1 tree absorbs ~6.25kg CO2/year
+      const wasteReduced = (userImpact.totalCO2Saved || carbonHistory.reduce((sum: number, item: CarbonHistoryItem) => sum + (item.carbonSaved || 0), 0) || 12.5) * 1.2; // Estimate waste reduction
       
       return {
         totalCO2SavedByProducts: products.reduce((sum, p) => sum + (p.co2Prediction || 0), 0),
@@ -78,7 +83,7 @@ const CarbonFootprintModal: React.FC<{
           wastePreventedKg: Math.round(wasteReduced * 10) / 10 || 15.2
         }
       };
-    } catch (error) {
+    } catch {
       // Fallback to mock data if localStorage fails
       return {
         totalCO2SavedByProducts: products.reduce((sum, p) => sum + (p.co2Prediction || 0), 0),
@@ -100,8 +105,6 @@ const CarbonFootprintModal: React.FC<{
   };
 
   const carbonData = getUserCarbonData();
-
-  const totalCO2Saved = carbonData.monthlyData.reduce((sum, month) => sum + month.co2Saved, 0);
 
   const handleCalculateImpact = async () => {
     try {
@@ -420,7 +423,7 @@ const CarbonFootprintModal: React.FC<{
             {/* Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-green-900/20 border border-green-700 rounded-lg p-4 text-center">
-                <div className="text-3xl font-bold text-green-400 mb-2">{totalCO2Saved.toFixed(1)} kg</div>
+                <div className="text-3xl font-bold text-green-400 mb-2">{carbonData.monthlyData.reduce((sum, month) => sum + month.co2Saved, 0).toFixed(1)} kg</div>
                 <div className="text-green-300 font-medium">Total CO₂ Saved</div>
                 <div className="text-xs text-green-400 mt-1">This year</div>
               </div>
@@ -689,7 +692,9 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user: initialUser, on
         const updatedProducts = allProducts.filter(p => p.id !== productId);
         localStorage.setItem('cc_seller_products', JSON.stringify(updatedProducts));
         setProducts(products.filter(p => p.id !== productId));
-      } catch {}
+      } catch {
+        // ignore
+      }
     }
   };
 
@@ -819,38 +824,90 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user: initialUser, on
             <div>
               <h3 className="text-lg font-semibold text-[#333] mb-6">Your Products ({filteredProducts.length})</h3>
 
-              {filteredProducts.length === 0 ? (
-                <div className="dashboard-card text-center">
-                  <div className="text-6xl mb-4">🎨</div>
-                  <h4 className="text-xl font-semibold text-[#333] mb-2">No products yet</h4>
-                  <p className="text-[#666] mb-6">Start by creating your first product to begin selling</p>
-                  <button onClick={() => onNavigate('seller-create')} className="btn-primary">Create Your First Product</button>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredProducts.map(product => (
-                    <div key={product.id} className="product-card">
-                      <div className="h-48 bg-gray-200 rounded-t-[14px] overflow-hidden">
-                        <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
-                      </div>
+              {(() => {
+                // Placeholder products when no products exist
+                const placeholderProducts = [
+                  {
+                    id: 'placeholder1',
+                    name: 'Handwoven Basket',
+                    description: 'Create beautiful handwoven baskets from sustainable materials',
+                    price: 0,
+                    image: 'https://images.pexels.com/photos/6474306/pexels-photo-6474306.jpeg?auto=compress&cs=tinysrgb&w=400',
+                    co2Prediction: 2.5,
+                    isPlaceholder: true
+                  },
+                  {
+                    id: 'placeholder2',
+                    name: 'Terracotta Pot',
+                    description: 'Craft traditional terracotta pots with eco-friendly techniques',
+                    price: 0,
+                    image: 'https://images.pexels.com/photos/6474306/pexels-photo-6474306.jpeg?auto=compress&cs=tinysrgb&w=400',
+                    co2Prediction: 1.8,
+                    isPlaceholder: true
+                  },
+                  {
+                    id: 'placeholder3',
+                    name: 'Cotton Scarf',
+                    description: 'Weave soft cotton scarves with traditional patterns',
+                    price: 0,
+                    image: 'https://images.pexels.com/photos/6474306/pexels-photo-6474306.jpeg?auto=compress&cs=tinysrgb&w=400',
+                    co2Prediction: 3.2,
+                    isPlaceholder: true
+                  }
+                ];
 
-                      <div className="p-4">
-                        <h4 className="font-semibold text-[#333] mb-2 line-clamp-2">{product.name}</h4>
-                        <p className="text-sm text-[#666] mb-3 line-clamp-2">{product.description}</p>
+                const displayProducts = filteredProducts.length > 0 ? filteredProducts : placeholderProducts;
 
-                        <div className="flex items-center justify-between mb-3">
-                          <span className="text-lg font-bold text-[#d67a4a]">₹{product.price}</span>
-                          <div className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">🌱 -{product.co2Prediction ?? 0}kg CO₂</div>
+                return (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {displayProducts.map(product => (
+                      <div
+                        key={product.id}
+                        className={`product-card ${product.isPlaceholder ? 'opacity-60 cursor-pointer hover:opacity-80' : ''}`}
+                        onClick={product.isPlaceholder ? () => onNavigate('seller-create') : undefined}
+                      >
+                        <div className="h-48 bg-gray-200 rounded-t-[14px] overflow-hidden">
+                          <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
                         </div>
 
-                        <div className="flex gap-2">
-                          <button onClick={() => deleteProduct(product.id)} className="flex-1 bg-red-500 hover:bg-red-600 text-white py-2 px-3 rounded-lg text-sm font-medium transition">Delete</button>
+                        <div className="p-4">
+                          <h4 className="font-semibold text-[#333] mb-2 line-clamp-2">{product.name}</h4>
+                          <p className="text-sm text-[#666] mb-3 line-clamp-2">{product.description}</p>
+
+                          <div className="flex items-center justify-between mb-3">
+                            <span className="text-lg font-bold text-[#d67a4a]">
+                              {product.isPlaceholder ? '₹XXX' : `₹${product.price}`}
+                            </span>
+                            <div className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
+                              🌱 -{product.co2Prediction ?? 0}kg CO₂
+                            </div>
+                          </div>
+
+                          {product.isPlaceholder ? (
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => onNavigate('seller-create')}
+                                className="flex-1 bg-[#d67a4a] hover:bg-[#c56a3a] text-white py-2 px-3 rounded-lg text-sm font-medium transition"
+                              >
+                                Create Product
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => deleteProduct(product.id)}
+                                className="flex-1 bg-red-500 hover:bg-red-600 text-white py-2 px-3 rounded-lg text-sm font-medium transition"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                    ))}
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </div>
