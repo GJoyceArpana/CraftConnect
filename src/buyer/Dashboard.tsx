@@ -1,5 +1,5 @@
 // src/BuyerDashboard.tsx
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { FC } from 'react';
 import CarbonFootprintBadge, { CarbonFootprintCard } from '../components/CarbonFootprintBadge';
 
@@ -14,6 +14,8 @@ type Product = {
   wasteReductionPct?: number;
   category: string;
   image: string;
+  sellerId?: string;
+  sellerName?: string;
 };
 
 type CartItem = Product & { quantity: number };
@@ -118,6 +120,7 @@ const BuyerDashboard: FC<BuyerDashboardProps> = ({ user: initialUser, onNavigate
   const [showProductModal, setShowProductModal] = useState<boolean>(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [sellerProducts, setSellerProducts] = useState<Product[]>([]);
 
   // initialize cart from localStorage only once (lazy initializer)
   const [cart, setCart] = useState<CartItem[]>(() => {
@@ -195,7 +198,49 @@ const BuyerDashboard: FC<BuyerDashboardProps> = ({ user: initialUser, onNavigate
     }
   ];
 
-  const filteredProducts = mockProducts.filter(product => {
+  useEffect(() => {
+    const loadSellerProducts = () => {
+      try {
+        const raw = localStorage.getItem('cc_seller_products') || '[]';
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) {
+          setSellerProducts([]);
+          return;
+        }
+
+        const normalized = parsed.map((product: any) => ({
+          id: Number(product.id) || Date.now(),
+          name: product.name ?? 'Unnamed Product',
+          description: product.description ?? '',
+          price: Number(product.price) || 0,
+          co2Saved: Number(product.co2Saved ?? product.co2SavingKg ?? product.co2Prediction ?? 0),
+          co2SavingKg: Number(product.co2SavingKg ?? product.co2Prediction ?? 0),
+          sustainabilityScore: Number(product.sustainabilityScore ?? 0),
+          wasteReductionPct: Number(product.wasteReductionPct ?? 0),
+          category: product.category ?? 'uncategorized',
+          image: product.image ?? 'https://images.pexels.com/photos/6474306/pexels-photo-6474306.jpeg?auto=compress&cs=tinysrgb&w=400',
+          sellerId: product.sellerId ?? 'local-seller',
+          sellerName: product.sellerName ?? 'Local Seller'
+        }));
+
+        setSellerProducts(normalized);
+      } catch {
+        setSellerProducts([]);
+      }
+    };
+
+    loadSellerProducts();
+    window.addEventListener('storage', loadSellerProducts);
+    window.addEventListener('cc-products-updated', loadSellerProducts);
+    return () => {
+      window.removeEventListener('storage', loadSellerProducts);
+      window.removeEventListener('cc-products-updated', loadSellerProducts);
+    };
+  }, []);
+
+  const allProducts = [...sellerProducts, ...mockProducts];
+
+  const filteredProducts = allProducts.filter(product => {
     const matchesCategory = selectedCategory === 'all' || product.category === selectedCategory;
     const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesCategory && matchesSearch;
