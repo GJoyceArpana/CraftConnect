@@ -21,6 +21,24 @@ type Product = {
   co2Prediction?: number;
 };
 
+type OrderItem = {
+  id: number | string;
+  name: string;
+  price: number;
+  quantity: number;
+  sellerId?: string | number;
+  sellerName?: string;
+};
+
+type Order = {
+  id: string;
+  items: OrderItem[];
+  subtotal: number;
+  totalCO2Saved: number;
+  date: string;
+  status: string;
+};
+
 type SellerDashboardProps = {
   user?: User | null;
   onNavigate: (path: string) => void;
@@ -113,21 +131,46 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user: initialUser, on
   const [products, setProducts] = useState<Product[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [showProfile, setShowProfile] = useState(false);
+  const [orders, setOrders] = useState<Order[]>([]);
+
+  const sellerKey = user?.id ?? 'local-seller';
 
   useEffect(() => {
     try {
       const sellerProducts: Product[] = JSON.parse(localStorage.getItem('cc_seller_products') || '[]');
-      if (user?.id !== undefined) {
-        setProducts(sellerProducts.filter(product => product.sellerId === user.id));
-      } else {
-        setProducts([]);
-      }
+      setProducts(sellerProducts.filter(product => (product.sellerId ?? 'local-seller') === sellerKey));
     } catch {
       setProducts([]);
     }
-  }, [user]);
+  }, [sellerKey]);
+
+  useEffect(() => {
+    const loadOrders = () => {
+      try {
+        const allOrders: Order[] = JSON.parse(localStorage.getItem('cc_orders') || '[]');
+        const sellerOrders = allOrders
+          .map(order => ({
+            ...order,
+            items: order.items.filter(item => (item.sellerId ?? 'local-seller') === sellerKey)
+          }))
+          .filter(order => order.items.length > 0);
+        setOrders(sellerOrders);
+      } catch {
+        setOrders([]);
+      }
+    };
+
+    loadOrders();
+    window.addEventListener('storage', loadOrders);
+    window.addEventListener('cc-orders-updated', loadOrders);
+    return () => {
+      window.removeEventListener('storage', loadOrders);
+      window.removeEventListener('cc-orders-updated', loadOrders);
+    };
+  }, [sellerKey]);
 
   const filteredProducts = products.filter(product => product.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  const totalOrders = orders.length;
 
   const deleteProduct = (productId: number) => {
     if (confirm('Are you sure you want to delete this product?')) {
@@ -142,7 +185,6 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user: initialUser, on
 
   // Mock statistics
   const totalProducts = products.length;
-  const totalSold = 25; // Mock data
   const totalRevenue = 8450; // Mock data
 
   return (
@@ -209,9 +251,9 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user: initialUser, on
               </div>
 
               <div className="summary-card">
-                <div className="text-3xl font-bold mb-2">{totalSold}</div>
-                <div className="text-white/90">Total Sold</div>
-                <div className="text-xs text-white/70 mt-1">📦 Happy customers</div>
+                <div className="text-3xl font-bold mb-2">{totalOrders}</div>
+                <div className="text-white/90">New Orders</div>
+                <div className="text-xs text-white/70 mt-1">📦 Awaiting fulfillment</div>
               </div>
 
               <div className="summary-card tertiary">
@@ -219,6 +261,39 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user: initialUser, on
                 <div className="text-white/90">Revenue Earned</div>
                 <div className="text-xs text-white/70 mt-1">💰 This month</div>
               </div>
+            </div>
+
+            {/* Orders */}
+            <div className="dashboard-card">
+              <h3 className="text-lg font-semibold text-[#333] mb-4">Recent Orders</h3>
+              {orders.length === 0 ? (
+                <p className="text-[#666] text-sm">No orders yet.</p>
+              ) : (
+                <div className="space-y-4">
+                  {orders.map(order => (
+                    <div key={order.id} className="border border-gray-100 rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="font-semibold">Order #{order.id}</div>
+                        <div className="text-xs text-[#666]">{new Date(order.date).toLocaleString()}</div>
+                      </div>
+                      <div className="space-y-2">
+                        {order.items.map(item => (
+                          <div key={`${order.id}-${item.id}`} className="flex items-center justify-between text-sm">
+                            <div>
+                              {item.name} × {item.quantity}
+                            </div>
+                            <div className="font-medium">₹{item.price * item.quantity}</div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex items-center justify-between pt-2 mt-2 border-t text-sm">
+                        <span className="text-[#666]">Status: {order.status}</span>
+                        <span className="font-semibold">Subtotal: ₹{order.subtotal}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Create Product Button */}
