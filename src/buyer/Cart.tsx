@@ -19,6 +19,8 @@ type CartItem = {
   co2Saved: number;
   image?: string;
   quantity: number;
+  sellerId?: string;
+  sellerName?: string;
 };
 
 type BuyerCartProps = {
@@ -64,10 +66,15 @@ const BuyerCart: FC<BuyerCartProps> = ({ user: _user, onNavigate, onBack }) => {
   const totalCO2Saved: number = cart.reduce((total, item) => total + (item.co2Saved * item.quantity), 0);
 
   const handleCheckout = (): void => {
+    const orderItems = cart.map(item => ({
+      ...item,
+      sellerId: item.sellerId ?? 'local-seller',
+      sellerName: item.sellerName ?? 'Local Seller'
+    }));
     // Create order
     const order = {
       id: Date.now().toString(),
-      items: cart,
+      items: orderItems,
       subtotal,
       totalCO2Saved,
       date: new Date().toISOString(),
@@ -81,6 +88,7 @@ const BuyerCart: FC<BuyerCartProps> = ({ user: _user, onNavigate, onBack }) => {
     } catch {
       localStorage.setItem('cc_orders', JSON.stringify([order]));
     }
+    window.dispatchEvent(new Event('cc-orders-updated'));
 
     // Clear cart
     setCart([]);
