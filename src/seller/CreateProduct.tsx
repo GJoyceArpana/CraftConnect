@@ -1,5 +1,5 @@
 // src/CreateProduct.tsx
-import React, { useState, ChangeEvent, FormEvent } from 'react';
+import React, { useMemo, useState, ChangeEvent, FormEvent } from 'react';
 
 type User = {
   id?: string | number;
@@ -111,6 +111,16 @@ const calculateCO2ImpactFallback = (material: string, weightStr: string, process
 };
 
 const CreateProduct: React.FC<CreateProductProps> = ({ user, onNavigate, onBack }) => {
+  const storedSeller = useMemo(() => {
+    try {
+      const raw = localStorage.getItem('cc_seller');
+      return raw ? (JSON.parse(raw) as User) : null;
+    } catch {
+      return null;
+    }
+  }, []);
+  const sellerId = user?.id ?? storedSeller?.id ?? 'local-seller';
+  const sellerName = user?.name ?? storedSeller?.name ?? 'Local Seller';
   const [formData, setFormData] = useState<FormState>({
     name: '',
     description: '',
@@ -236,8 +246,8 @@ const CreateProduct: React.FC<CreateProductProps> = ({ user, onNavigate, onBack 
     const productData = {
       ...formData,
       id: Date.now().toString(),
-      sellerId: user?.id ?? null,
-      sellerName: user?.name ?? 'Unknown Seller',
+      sellerId,
+      sellerName,
       price: priceNum,
       weight: parseFloat(formData.weight), // convert to number
       packagingWeight: parseFloat(formData.packagingWeight),
@@ -263,6 +273,7 @@ const CreateProduct: React.FC<CreateProductProps> = ({ user, onNavigate, onBack 
         return;
       }
     }
+    window.dispatchEvent(new Event('cc-products-updated'));
 
     alert('Product created successfully! 🎉');
     onNavigate('seller-dashboard');
