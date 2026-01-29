@@ -1,6 +1,7 @@
 // src/BuyerCart.tsx
 import { useState } from 'react';
 import type { FC } from 'react';
+import QRCode from 'react-qr-code'; // <-- Import the QR code component
 
 type User = {
   id?: string | number;
@@ -27,6 +28,58 @@ type BuyerCartProps = {
   onBack: () => void;
 };
 
+// Component for the QR Code Modal
+const PaymentQRModal: FC<{
+  subtotal: number;
+  onClose: () => void;
+  onPaymentSuccess: () => void;
+}> = ({ subtotal, onClose, onPaymentSuccess }) => {
+  // UPI Deep Link format: upi://pay?pa=VPA&pn=NAME&am=AMOUNT&cu=CURRENCY
+  // NOTE: Replace 'merchantvpa@bank' with a real UPI VPA for a non-demo app
+  const upiId = 'craftconnect@upi'; 
+  const amount = subtotal.toFixed(2);
+  const qrData = `upi://pay?pa=${upiId}&pn=CraftConnect&am=${amount}&cu=INR`;
+
+  return (
+    <div className="modal-overlay fixed inset-0 z-60 flex items-center justify-center bg-black/40" onClick={onClose}>
+      <div className="modal-content bg-white rounded-lg max-w-sm w-full p-6" onClick={(e) => e.stopPropagation()}>
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-xl font-bold text-[#154731]">Scan to Pay (UPI)</h3>
+          <button onClick={onClose} className="text-2xl text-[#666] hover:text-[#333]">×</button>
+        </div>
+
+        <div className="text-center space-y-4">
+          <p className="text-[#666]">
+            Scan the QR code with any UPI app (PhonePe, GPay, Paytm)
+          </p>
+          
+          {/* QR Code Container */}
+          <div className="p-4 border border-gray-300 rounded-lg inline-block bg-white shadow-xl">
+            {/* The actual QR code component */}
+            <QRCode value={qrData} size={256} level="H" />
+          </div>
+
+          <div className="text-lg font-bold text-[#154731]">
+            Amount: ₹{amount}
+          </div>
+
+          <p className="text-xs text-red-500">
+            NOTE: This is a **simulated payment**. Click 'Confirm Payment' after scanning.
+          </p>
+
+          <button
+            onClick={onPaymentSuccess}
+            className="btn-primary w-full mt-4"
+          >
+            ✅ Confirm Payment (Simulated)
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
 const BuyerCart: FC<BuyerCartProps> = ({ user: _user, onNavigate, onBack }) => {
   const [cart, setCart] = useState<CartItem[]>(() => {
     try {
@@ -36,6 +89,8 @@ const BuyerCart: FC<BuyerCartProps> = ({ user: _user, onNavigate, onBack }) => {
       return [];
     }
   });
+
+  const [showQRModal, setShowQRModal] = useState<boolean>(false); // <-- New State
 
   const updateQuantity = (productId: number, newQuantity: number): void => {
     if (newQuantity === 0) {
@@ -64,14 +119,23 @@ const BuyerCart: FC<BuyerCartProps> = ({ user: _user, onNavigate, onBack }) => {
   const totalCO2Saved: number = cart.reduce((total, item) => total + (item.co2Saved * item.quantity), 0);
 
   const handleCheckout = (): void => {
-    // Create order
+    if (cart.length === 0) return;
+    
+    // Instead of completing the order, show the QR modal
+    setShowQRModal(true);
+  };
+  
+  const handlePaymentSuccess = (): void => {
+    setShowQRModal(false); // Close the modal
+
+    // --- Original Order Completion Logic ---
     const order = {
       id: Date.now().toString(),
       items: cart,
       subtotal,
       totalCO2Saved,
       date: new Date().toISOString(),
-      status: 'confirmed'
+      status: 'paid' // Mark as paid after confirmation
     };
 
     // Save order
@@ -88,7 +152,7 @@ const BuyerCart: FC<BuyerCartProps> = ({ user: _user, onNavigate, onBack }) => {
       localStorage.removeItem('cc_cart');
     } catch {}
 
-    alert('Order placed successfully! 🎉');
+    alert('Payment confirmed and Order placed successfully! 🎉');
     onNavigate('buyer-dashboard');
   };
 
@@ -126,7 +190,7 @@ const BuyerCart: FC<BuyerCartProps> = ({ user: _user, onNavigate, onBack }) => {
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Cart Items */}
+            {/* Cart Items (Unchanged) */}
             <div className="lg:col-span-2 space-y-4">
               <h3 className="text-lg font-semibold text-[#333] mb-4">
                 Cart Items ({cart.length})
@@ -218,20 +282,30 @@ const BuyerCart: FC<BuyerCartProps> = ({ user: _user, onNavigate, onBack }) => {
                 </div>
 
                 <button
-                  onClick={handleCheckout}
+                  onClick={handleCheckout} // <-- Now opens QR Modal
                   className="btn-primary w-full text-lg"
                 >
                   Checkout - ₹{subtotal}
                 </button>
 
                 <p className="text-xs text-[#666] text-center mt-3">
-                  Demo checkout - no payment required
+                  Click 'Checkout' to pay via UPI QR Code.
                 </p>
               </div>
             </div>
           </div>
         )}
       </div>
+      
+      {/* QR Payment Modal */}
+      {showQRModal && (
+        <PaymentQRModal 
+          subtotal={subtotal}
+          onClose={() => setShowQRModal(false)}
+          onPaymentSuccess={handlePaymentSuccess}
+        />
+      )}
+      
     </div>
   );
 };

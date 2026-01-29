@@ -68,5 +68,15 @@
     "percent_recycled_material": 20,
     "production_method": "handmade",
     "materials": ""
+  },
+  {
+    "name": "bamboo hat",
+    "category": "bamboo",
+    "weight_g": 150,
+    "packaging_weight_g": 50,
+    "distance_km_to_market": 199,
+    "percent_recycled_material": 4,
+    "production_method": "handmade",
+    "materials": "bamboo"
   }
 ]
